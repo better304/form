@@ -64,25 +64,30 @@ function _handleSubmission(body) {
     }
   });
 
-  // 2) 시트에 행 추가
+  // 2) 시트에 행 추가 — 폼 작성 순서대로 열 배치
   const sheet = _ensureSheet(CONFIG.SHEET_SUBMIT, [
-    '접수일시(KST)', '대상자성함', '의뢰자성함', '연락처', '업종구분',
-    '주민번호(마스킹)', '홈택스ID', '홈택스PW제출여부',
-    '부양가족(JSON)', '소득종류', '기타소득',
-    '진단결과', '진단응답(JSON)',
-    '동의_필수1', '동의_필수2', '동의_마케팅',
-    '업로드폴더', '파일목록',
+    '접수일시(KST)',
+    /* Step 1 */ '대상자성함', '의뢰자성함', '연락처', '업종구분',
+    /* Step 2 */ '주민번호',
+    /* Step 3 */ '홈택스ID', '홈택스PW제출여부',
+    /* Step 4 */ '부양가족(JSON)',
+    /* Step 5 */ '소득종류', '기타소득',
+    /* Step 6 */ '업로드폴더', '파일목록',
+    /* Step 7 */ '동의_필수1', '동의_필수2', '동의_마케팅',
+    /* 후킹 섹션 */ '진단결과', '진단응답(JSON)',
     'UserAgent'
   ]);
 
   sheet.appendRow([
     Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss'),
     d.targetName || '', d.requesterName || '', d.phone || '', d.bizType || '',
-    d.rrnMasked || '', d.hometaxId || '', d.hometaxPwProvided || 'N',
-    d.dependents || '[]', d.incomeTypes || '', d.incomeEtc || '',
-    d.quizResult || '', d.quizAnswers || '{}',
-    d.agree1 ? 'Y' : 'N', d.agree2 ? 'Y' : 'N', d.agree3 ? 'Y' : 'N',
+    d.rrn || '',
+    d.hometaxId || '', d.hometaxPwProvided || 'N',
+    d.dependents || '[]',
+    d.incomeTypes || '', d.incomeEtc || '',
     sub.getUrl(), fileLinks.join('\n'),
+    d.agree1 ? 'Y' : 'N', d.agree2 ? 'Y' : 'N', d.agree3 ? 'Y' : 'N',
+    d.quizResult || '', d.quizAnswers || '{}',
     d.userAgent || ''
   ]);
 

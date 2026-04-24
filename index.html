@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>2026년 귀속 종합소득세 신고대리 접수 · 더나은세무회계 부산세무사</title>
+<title>2026년 5월 종합소득세 신고대리 접수 (2025년 귀속) · 더나은세무회계 부산세무사</title>
 <meta name="description" content="부산 금정구 장전동 더나은세무회계 · 김나은 세무사. 자영업·프리랜서·부동산 임대 종합소득세 신고대리 모바일 접수." />
 <meta name="keywords" content="부산 세무사, 금정구 세무사, 종합소득세 신고대리, 프리랜서 종합소득세, 자영업자 종합소득세, 기장대리, 부동산임대 종합소득세" />
 <link rel="canonical" href="https://example.com/" />
@@ -172,6 +172,23 @@
   .faq-body{padding:0 14px 14px;font-size:13px;color:var(--ink-700)}
   .faq-body .hook{margin-top:8px;padding:9px;background:var(--green-100);border-radius:6px;font-size:12px;color:var(--green-700)}
 
+  /* ── 로딩 오버레이 ────────────────────── */
+  #loadingOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center;padding:24px}
+  #loadingOverlay.active{display:flex;animation:fadeIn .2s}
+  .loading-card{background:#fff;padding:28px 24px;border-radius:16px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .spinner{width:44px;height:44px;border:4px solid var(--green-100);border-top-color:var(--green-700);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-title{font-size:16px;font-weight:700;margin:0 0 4px;color:var(--ink-900)}
+  .loading-msg{font-size:13px;color:var(--ink-500);margin:0 0 14px;min-height:20px}
+  .loading-warn{background:#FFF5E0;color:#8A5500;padding:10px;border-radius:8px;font-size:12px;font-weight:600}
+  .loading-timer{margin-top:10px;font-size:11px;color:var(--ink-300)}
+
+  /* ── 에러 카드 ────────────────────────── */
+  .err-card{background:#fff;border:2px solid var(--danger);border-radius:14px;padding:18px;margin:12px 0;text-align:left}
+  .err-card h4{margin:0 0 6px;color:var(--danger);font-size:14px}
+  .err-card p{margin:0 0 8px;font-size:13px;color:var(--ink-700)}
+  .err-card code{background:var(--ink-100);padding:2px 6px;border-radius:4px;font-size:11px;word-break:break-all;display:block;margin-top:6px}
+
   /* ── 후킹 배너 ────────────────────────── */
   .hook-banner{background:linear-gradient(135deg,var(--green-700),var(--green-500));color:#fff;border-radius:12px;padding:16px;font-size:13.5px;margin:18px 0}
   .hook-banner strong{display:block;font-size:15px;margin-bottom:6px}
@@ -202,7 +219,7 @@
 <section id="preSubmit">
   <div class="hero">
     <div class="wrap">
-      <h1><em>2026년 귀속 종합소득세</em><br>신고대리 접수</h1>
+      <h1><em>2026년 5월 종합소득세 신고</em><br>신고대리 접수 <span style="font-size:13px;color:var(--ink-500);font-weight:500">(2025년 귀속)</span></h1>
       <p class="hero-sub">아래 정보를 입력해 주시면 신고를 진행해 드립니다. 모든 전송은 HTTPS로 암호화됩니다.</p>
       <div class="trust">
         <span class="badge">등록세무사 제 420-23-01707</span>
@@ -252,7 +269,7 @@
       <div class="form-step" data-fstep="2">
         <div class="step-head"><span><strong>2</strong> / 7</span><span>주민등록번호</span></div>
         <div class="step-title">주민등록번호를 입력해 주세요</div>
-        <div class="secure-note">🔒 <div>뒷자리는 첫 1자리만 저장되고 나머지는 자동 마스킹됩니다. 완전한 번호는 별도 보안 채널로 수집합니다.</div></div>
+        <div class="secure-note">🔒 <div>입력한 주민등록번호는 HTTPS 구간 암호화로 전송됩니다. 신고 업무 목적 외에는 사용되지 않으며, 신고 완료 후 법정 보관기간(5년) 경과 시 파기됩니다.</div></div>
         <div class="field">
           <label>주민등록번호 <span class="req">*</span></label>
           <div class="rrn-wrap">
@@ -260,7 +277,6 @@
             <span class="dash">-</span>
             <input type="password" name="rrnBack" maxlength="7" inputmode="numeric" required placeholder="뒷 7자리" />
           </div>
-          <div class="hint">* 저장 형식: 123456-1******</div>
         </div>
         <div class="nav-btns">
           <button type="button" class="btn btn-ghost" data-prev>← 이전</button>
@@ -399,7 +415,7 @@
           </div>
         </div>
         <div class="quiz-step" data-qstep="2">
-          <div class="quiz-q">Q2. 2026년 연 수입 규모는?</div>
+          <div class="quiz-q">Q2. 2025년 연 수입 규모는? <span style="font-size:11px;color:var(--ink-500);font-weight:500">(신고 대상 연도)</span></div>
           <div class="quiz-opts" data-q="2">
             <button class="quiz-opt" data-v="1">2,400만원 미만</button>
             <button class="quiz-opt" data-v="2">2,400만원 ~ 7,500만원</button>
@@ -473,6 +489,17 @@
     </div>
   </div>
 </section>
+
+<!-- 로딩 오버레이 -->
+<div id="loadingOverlay">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <h3 class="loading-title">접수 처리 중입니다</h3>
+    <p class="loading-msg" id="loadingMsg">잠시만 기다려 주세요…</p>
+    <div class="loading-warn">⚠️ 창을 닫지 말아 주세요<br>(파일 업로드가 중단될 수 있어요)</div>
+    <div class="loading-timer" id="loadingTimer"></div>
+  </div>
+</div>
 
 <footer>
   <div class="wrap">
@@ -631,7 +658,7 @@ const DOC_DEFS = {
   self:[
     {k:'util',  name:'사업장 공과금 (전기·가스·인터넷)', how:'<a href="https://cyber.kepco.co.kr/" target="_blank" rel="noopener">한전 사이버지점</a>, 도시가스 고객센터, 통신사 앱'},
     {k:'ins',   name:'사업 관련 보험납입 내역서', how:'각 보험사 홈페이지 "납입증명서" 발급'},
-    {k:'tel',   name:'2026년 통신비 내역', how:'통신사 앱 "연간 납부내역" 캡처 또는 연말정산 간소화자료에 포함'},
+    {k:'tel',   name:'2025년 통신비 내역', how:'통신사 앱 "연간 납부내역" 캡처 또는 연말정산 간소화자료에 포함'},
     {k:'yrend', name:'연말정산 간소화자료', how:'<a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스</a> → 편리한 연말정산 → 자료조회'},
     {k:'car',   name:'자동차 관련 내역', how:'자동차등록증, 보험증권, 렌트/리스 이용증명'},
     {k:'loan',  name:'사업 관련 대출 내역 (해당 시)', how:'부채잔액증명·이자납입내역: 은행 앱 "증명서 발급"'},
@@ -639,7 +666,7 @@ const DOC_DEFS = {
     {k:'etc',   name:'기타 사업 경비 (인건비 등)', how:'지급명세서·계좌이체·세금계산서·현금영수증'}
   ],
   free:[
-    {k:'tel',   name:'2026년 통신비 내역', how:'통신사 앱 연간 납부내역'},
+    {k:'tel',   name:'2025년 통신비 내역', how:'통신사 앱 연간 납부내역'},
     {k:'car',   name:'자동차 관련 내역', how:'자동차등록증·보험증권·렌트리스비 (업무사용 비율 반영)'},
     {k:'yrend', name:'연말정산 간소화자료', how:'<a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스</a> → 편리한 연말정산'},
     {k:'bank',  name:'환급받을 계좌 (통장사본)', how:'통장 사진 또는 <strong>은행명/계좌번호/예금주</strong> 적어서 촬영'}
@@ -689,11 +716,13 @@ $('#appForm').addEventListener('submit', async e=>{
   }
   $('#submitBtn').disabled = true;
   $('#submitBtn').textContent = '전송 중…';
+  showLoading('데이터 준비 중…');
+  enableUnloadGuard();
 
   const fd = new FormData(e.target);
   const data = Object.fromEntries(fd.entries());
-  const rrnBack = data.rrnBack || '';
-  data.rrnMasked = (data.rrnFront||'') + '-' + (rrnBack[0]||'') + '******';
+  data.rrn = (data.rrnFront||'') + '-' + (data.rrnBack||'');
+  delete data.rrnFront;
   delete data.rrnBack;
   delete data.hometaxPw;
   data.hometaxPwProvided = $('#hometaxPw').value ? 'Y' : 'N';
@@ -706,7 +735,7 @@ $('#appForm').addEventListener('submit', async e=>{
     deps.push({
       rel: (b.querySelector(`[name="dep_rel_${i}"]`)||{}).value||'',
       name:(b.querySelector(`[name="dep_name_${i}"]`)||{}).value||'',
-      rrnMasked: f + '-' + (bk[0]||'') + '******'
+      rrn: f + '-' + bk
     });
     ['dep_rrn_f_','dep_rrn_b_','dep_rel_','dep_name_'].forEach(p=>delete data[p+i]);
   });
@@ -714,35 +743,108 @@ $('#appForm').addEventListener('submit', async e=>{
   data.submittedAt = new Date().toISOString();
   data.userAgent = navigator.userAgent;
 
-  const files = [];
+  /* 파일 인코딩 */
+  const allFiles = [];
   for(const inp of $$('#docList input[type=file]')){
-    for(const f of inp.files){
-      const b64 = await readAsBase64(f);
-      files.push({docKey: inp.dataset.doc, name: f.name, mime: f.type, size: f.size, data: b64});
-    }
+    for(const f of inp.files) allFiles.push({inp, f});
+  }
+  const files = [];
+  for(let i=0;i<allFiles.length;i++){
+    const {inp, f} = allFiles[i];
+    updateLoadingMsg(`파일 암호화 중… (${i+1}/${allFiles.length})`);
+    const b64 = await readAsBase64(f);
+    files.push({docKey: inp.dataset.doc, name: f.name, mime: f.type, size: f.size, data: b64});
   }
 
   const payload = {type:'submission', data, files};
 
   if(CONFIG.DEMO_MODE){
     console.log('[DEMO] payload:', payload);
-    setTimeout(finishSubmit, 700);
+    updateLoadingMsg('데모 모드 — 전송 건너뜀');
+    setTimeout(()=>{ hideLoading(); disableUnloadGuard(); finishSubmit(); }, 700);
     return;
   }
+
+  updateLoadingMsg('서버로 암호화 전송 중…');
+  startLoadingTimer();
+
   try{
+    /* 45초 타임아웃 */
+    const controller = new AbortController();
+    const timeoutId = setTimeout(()=>controller.abort(), 45000);
+
     const res = await fetch(CONFIG.GAS_ENDPOINT, {
-      method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(payload)
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+      redirect: 'follow'
     });
-    const j = await res.json();
-    if(j.ok) finishSubmit();
-    else throw new Error(j.error||'전송 실패');
+    clearTimeout(timeoutId);
+
+    updateLoadingMsg('응답 확인 중…');
+    const txt = await res.text();
+    let j;
+    try { j = JSON.parse(txt); }
+    catch(e) { throw new Error('서버 응답을 읽을 수 없습니다. 응답 원문: ' + txt.slice(0,200)); }
+
+    if(!res.ok) throw new Error(`HTTP ${res.status}: ${j.error||txt.slice(0,200)}`);
+    if(!j.ok)   throw new Error(j.error||'서버가 성공 신호를 보내지 않았습니다');
+
+    stopLoadingTimer();
+    hideLoading();
+    disableUnloadGuard();
+    finishSubmit();
   }catch(err){
-    alert('전송 실패: '+err.message);
+    stopLoadingTimer();
+    hideLoading();
+    disableUnloadGuard();
+    showSubmitError(err);
     $('#submitBtn').disabled=false;
     $('#submitBtn').textContent='🔒 암호화 제출하기';
   }
 });
+
+/* ── 로딩 오버레이 & 이탈 방지 유틸 ── */
+let _loadingTimerId=null, _loadingStart=0, _unloadHandler=null;
+function showLoading(msg){
+  $('#loadingMsg').textContent = msg || '처리 중…';
+  $('#loadingTimer').textContent = '';
+  $('#loadingOverlay').classList.add('active');
+}
+function updateLoadingMsg(msg){ $('#loadingMsg').textContent = msg; }
+function hideLoading(){ $('#loadingOverlay').classList.remove('active'); }
+function startLoadingTimer(){
+  _loadingStart = Date.now();
+  _loadingTimerId = setInterval(()=>{
+    const s = Math.floor((Date.now()-_loadingStart)/1000);
+    let extra='';
+    if(s>=10) extra = ' · 서버 첫 응답 대기 중이에요';
+    if(s>=25) extra = ' · 거의 다 되었습니다…';
+    $('#loadingTimer').textContent = `경과 ${s}초${extra}`;
+  }, 500);
+}
+function stopLoadingTimer(){ if(_loadingTimerId){ clearInterval(_loadingTimerId); _loadingTimerId=null; } }
+function enableUnloadGuard(){
+  _unloadHandler = function(e){ e.preventDefault(); e.returnValue='전송 중입니다. 페이지를 닫으면 접수가 완료되지 않습니다.'; return e.returnValue; };
+  window.addEventListener('beforeunload', _unloadHandler);
+}
+function disableUnloadGuard(){
+  if(_unloadHandler){ window.removeEventListener('beforeunload', _unloadHandler); _unloadHandler=null; }
+}
+function showSubmitError(err){
+  const wrap = document.createElement('div');
+  wrap.className = 'err-card';
+  wrap.innerHTML = `
+    <h4>❌ 접수 전송 실패</h4>
+    <p>잠시 후 다시 시도해 주시거나, 아래 오류를 담당자에게 전달해 주세요.</p>
+    <code>${(err && err.message ? err.message : String(err)).replace(/</g,'&lt;')}</code>
+    <p style="margin-top:10px;font-size:12px;color:var(--ink-500)">
+      원인이 계속되면: ① 인터넷 연결 확인 · ② 페이지 새로고침 후 재시도 · ③ 담당 세무사에게 문의
+    </p>`;
+  const btn = $('#submitBtn');
+  btn.parentNode.insertBefore(wrap, btn);
+}
 function readAsBase64(file){
   return new Promise((res,rej)=>{
     const r=new FileReader();
