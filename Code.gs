@@ -69,8 +69,8 @@ function _handleSubmission(body) {
     '접수일시(KST)',
     /* Step 1 */ '대상자성함', '의뢰자성함', '연락처', '업종구분',
     /* Step 2 */ '주민번호',
-    /* Step 3 */ '홈택스ID', '홈택스PW제출여부',
-    /* Step 4 */ '부양가족(JSON)',
+    /* Step 3 */ '홈택스ID', '홈택스PW',
+    /* Step 4 */ '부양가족',
     /* Step 5 */ '소득종류', '기타소득',
     /* Step 6 */ '업로드폴더', '파일목록',
     /* Step 7 */ '동의_필수1', '동의_필수2', '동의_마케팅',
@@ -78,14 +78,21 @@ function _handleSubmission(body) {
     'UserAgent'
   ]);
 
+  const NA = '해당없음';
   sheet.appendRow([
     Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss'),
-    d.targetName || '', d.requesterName || '', d.phone || '', d.bizType || '',
+    d.targetName || '',
+    (d.requesterName && String(d.requesterName).trim()) ? d.requesterName : NA,
+    d.phone || '',
+    d.bizType || '',
     d.rrn || '',
-    d.hometaxId || '', d.hometaxPwProvided || 'N',
-    d.dependents || '[]',
-    d.incomeTypes || '', d.incomeEtc || '',
-    sub.getUrl(), fileLinks.join('\n'),
+    d.hometaxId || NA,
+    d.hometaxPw || NA,
+    _formatDeps(d.dependents),
+    d.incomeTypes || '',
+    (d.incomeEtc && String(d.incomeEtc).trim()) ? d.incomeEtc : NA,
+    sub.getUrl(),
+    fileLinks.join('\n'),
     d.agree1 ? 'Y' : 'N', d.agree2 ? 'Y' : 'N', d.agree3 ? 'Y' : 'N',
     d.quizResult || '', d.quizAnswers || '{}',
     d.userAgent || ''
@@ -120,6 +127,16 @@ function _ensureSheet(name, headers) {
     s.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#E6F4DB');
   }
   return s;
+}
+
+function _formatDeps(jsonStr) {
+  try {
+    const arr = JSON.parse(jsonStr || '[]');
+    if (!Array.isArray(arr) || arr.length === 0) return '해당없음';
+    return arr.map(d => [d.rel || '', d.name || '', d.rrn || ''].join('_')).join('\n');
+  } catch (e) {
+    return jsonStr || '해당없음';
+  }
 }
 
 function _ensureFolder(name) {

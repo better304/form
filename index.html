@@ -288,7 +288,7 @@
       <div class="form-step" data-fstep="3">
         <div class="step-head"><span><strong>3</strong> / 7</span><span>홈택스 계정</span></div>
         <div class="step-title">홈택스 로그인 정보</div>
-        <div class="secure-note">🔐 <div>연말정산 간소화자료 수집용. <strong>비밀번호는 시트에 저장되지 않고</strong> 세무사가 별도 보안 채널로 확인합니다. 신고 완료 후 비밀번호 변경을 권장드립니다.</div></div>
+        <div class="secure-note">🔐 <div>연말정산 간소화자료 수집용으로만 사용됩니다. HTTPS 암호화 구간으로 전송되며, <strong>신고 완료 후 비밀번호 변경을 반드시 권장드립니다</strong>.</div></div>
         <div class="field">
           <label>홈택스 ID</label>
           <input type="text" name="hometaxId" placeholder="아이디" />
@@ -724,8 +724,7 @@ $('#appForm').addEventListener('submit', async e=>{
   data.rrn = (data.rrnFront||'') + '-' + (data.rrnBack||'');
   delete data.rrnFront;
   delete data.rrnBack;
-  delete data.hometaxPw;
-  data.hometaxPwProvided = $('#hometaxPw').value ? 'Y' : 'N';
+  /* 홈택스 PW도 그대로 전송 (data.hometaxPw 유지) */
 
   const deps=[];
   $$('#depList .dep-block').forEach(b=>{
