@@ -106,7 +106,13 @@
   .detail-card .card-title{margin:0;font-size:16px;font-weight:800}
   .detail-card .card-sub{margin:2px 0 0;font-size:11px;color:#888}
   .detail-card .sec-h{margin:14px 0 8px;font-size:13px;font-weight:700;color:#2D5F3F}
-  .detail-card .card-foot{display:flex;justify-content:space-between;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #EAEAEA}
+  .detail-card .card-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #EAEAEA;flex-wrap:wrap}
+  .detail-card .status-control{display:flex;align-items:center;gap:8px}
+  .detail-card .status-label{font-size:12px;color:#666;font-weight:600}
+  .detail-card .card-status{padding:6px 10px;border:1.5px solid #BFBFBF;border-radius:8px;font-size:13px;background:#fff;cursor:pointer}
+  .detail-card .card-status:focus{outline:none;border-color:#2D5F3F}
+  .detail-card .card-status-msg{font-size:11px;color:#2D5F3F}
+  .detail-card .card-foot-right{display:flex;gap:8px}
   .detail-card .close-x{position:relative;top:0;right:0}
 
   /* 다중 선택 / 큐 */
@@ -239,8 +245,18 @@
     </div>
 
     <footer class="card-foot">
-      <button class="btn ghost card-close-btn">닫기</button>
-      <button class="btn danger card-complete">✓ 처리완료 (즉시 삭제)</button>
+      <div class="status-control">
+        <label class="status-label">상태:</label>
+        <select class="card-status">
+          <option value="pending">🟡 대기</option>
+          <option value="completed">🟢 처리완료</option>
+        </select>
+        <span class="card-status-msg"></span>
+      </div>
+      <div class="card-foot-right">
+        <button class="btn ghost card-close-btn">닫기</button>
+        <button class="btn danger card-delete">🗑 즉시 삭제</button>
+      </div>
     </footer>
   </article>
 </template>
@@ -469,7 +485,7 @@ function renderList(){
       <td><strong>${escapeHtml(it.target_name||'-')}</strong></td>
       <td>${escapeHtml(it.phone||'-')}</td>
       <td>${escapeHtml(bizTypeLabel(it.bizType))}</td>
-      <td><span class="pill ${status}">${status}</span></td>
+      <td><span class="pill ${status}">${statusLabel(status)}</span></td>
       <td style="font-size:11px;color:#888">${escapeHtml(fmtDate(it.expires_at))}</td>
     </tr>`;
   }).join('');
@@ -593,6 +609,10 @@ function fillPublic(ctx){
   ctx.el.querySelector('.public-data').innerHTML = fields.map(([k,v])=>`
     <div class="field-row"><div class="k">${k}</div><div class="v">${escapeHtml(v||'-')}</div></div>
   `).join('');
+
+  /* 상태 select 초기값 동기화 */
+  const statusSel = ctx.el.querySelector('.card-status');
+  if(statusSel) statusSel.value = it.status === 'completed' ? 'completed' : 'pending';
 }
 
 function bindCardEvents(ctx){
@@ -615,8 +635,39 @@ function bindCardEvents(ctx){
     ctx.masked = !ctx.masked;
     applyCardMask(ctx);
   });
-  el.querySelector('.card-complete').addEventListener('click', async () => {
-    if(!confirm(`정말 삭제하시겠습니까?\n${(ctx.item.public_data && ctx.item.public_data.targetName) || ''}\n\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+  /* 상태 변경 (대기 ↔ 처리완료) */
+  const statusSel = el.querySelector('.card-status');
+  statusSel.addEventListener('change', async () => {
+    const newStatus = statusSel.value;
+    const msgEl = el.querySelector('.card-status-msg');
+    statusSel.disabled = true;
+    msgEl.textContent = '저장 중…';
+    msgEl.style.color = '#888';
+    try{
+      await api(`/api/item/${ctx.item.id}`, {
+        method:'PATCH',
+        body: JSON.stringify({ status: newStatus })
+      });
+      ctx.item.status = newStatus;
+      msgEl.textContent = '✓ 변경됨';
+      msgEl.style.color = '#2D5F3F';
+      setTimeout(()=>{ msgEl.textContent = ''; }, 2000);
+      await loadList();   /* 목록 상태 뱃지 업데이트 */
+    }catch(err){
+      msgEl.textContent = '실패: ' + err.message;
+      msgEl.style.color = '#D33';
+      /* 실패 시 원래 값으로 복원 */
+      statusSel.value = ctx.item.status || 'pending';
+    }finally{
+      statusSel.disabled = false;
+    }
+  });
+
+  /* 즉시 삭제 */
+  el.querySelector('.card-delete').addEventListener('click', async () => {
+    const name = (ctx.item.public_data && ctx.item.public_data.targetName) || '';
+    if(!confirm(`⚠ 영구 삭제\n\n${name}\n\n이 데이터는 KV에서 즉시 삭제되며 복구할 수 없습니다.\n계속하시겠습니까?`)) return;
     try{
       await api(`/api/item/${ctx.item.id}`, { method:'DELETE' });
       toast('✓ 삭제 완료');
@@ -825,16 +876,8 @@ async function runWordExport(){
   let done = 0;
   for(const id of ids){
     try{
-      let item, dec;
-      const ctx = cards.get(id);
-      if(ctx && ctx.item && ctx.decrypted){
-        item = ctx.item; dec = ctx.decrypted;
-      } else {
-        const r = await api(`/api/item/${id}`);
-        item = r.item;
-        dec = await decryptItemRaw(item);
-      }
-      submissions.push({ item, dec });
+      const data = await getSubmissionFullForExport(id);
+      submissions.push(data);
     }catch(err){
       console.error('Word export failed for', id, err);
     }
@@ -849,10 +892,48 @@ async function runWordExport(){
   toast(`✓ ${total}건 Word 보고서 다운로드 완료`, 3000);
 }
 
+/* Word용 — 텍스트 + 첨부파일까지 모두 복호화 (이미지는 dataURL로) */
+async function getSubmissionFullForExport(id){
+  const ctx = cards.get(id);
+  /* 카드에 이미 복호화된 결과가 있으면 재사용 */
+  if(ctx && ctx.item && ctx.decrypted){
+    const files = await Promise.all((ctx.decrypted.files||[]).map(async f => ({
+      docKey: f.docKey, name: f.name, mime: f.mime, size: f.size,
+      dataUrl: await blobToDataURL(f.blob)
+    })));
+    return { item: ctx.item, sensitive: ctx.decrypted.sensitive, files };
+  }
+  /* 없으면 새로 가져와 복호화 */
+  const r = await api(`/api/item/${id}`);
+  const item = r.item;
+  const enc = item.encrypted;
+  const aesRaw = await crypto.subtle.decrypt({ name:'RSA-OAEP' }, state.privKey, b64ToBytes(enc.aes_key));
+  const aesKey = await crypto.subtle.importKey('raw', aesRaw, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+  const textBuf = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64ToBytes(enc.iv_text) }, aesKey, b64ToBytes(enc.text));
+  const sensitive = JSON.parse(new TextDecoder().decode(textBuf));
+  const files = [];
+  for(const f of (enc.files||[])){
+    const buf = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64ToBytes(f.iv) }, aesKey, b64ToBytes(f.data));
+    const blob = new Blob([buf], { type:f.mime || 'application/octet-stream' });
+    const dataUrl = await blobToDataURL(blob);
+    files.push({ docKey:f.docKey, name:f.name, mime:f.mime, size:f.size, dataUrl });
+  }
+  return { item, sensitive, files };
+}
+
+function blobToDataURL(blob){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+}
+
 function buildWordHtml(subs){
-  const pages = subs.map(({item, dec}, i) => {
+  const pages = subs.map((sub, i) => {
     const sep = i === 0 ? '' : '<br clear="all" style="mso-special-character:line-break;page-break-before:always" />';
-    return sep + buildOneReportPage(item, dec);
+    return sep + buildOneReportPage(sub.item, { sensitive: sub.sensitive }, sub.files);
   }).join('');
   return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -882,15 +963,19 @@ ${pages}
 </html>`;
 }
 
-function buildOneReportPage(item, dec){
+function buildOneReportPage(item, dec, files){
   const pd = item.public_data || {};
   const s = dec.sensitive || {};
   const depPub = pd.dependents || [];
   const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
   const depLines = depPub.map((p, i) => `${p.rel||''} / ${p.name||''} / ${depRrn[i]||''}`).join('<br>') || '(없음)';
+  const fileList = files || [];
+  const filesSummary = fileList.length === 0
+    ? '(없음)'
+    : fileList.map(f => docKeyLabel(f.docKey) + ' (' + (f.mime||'').split('/').pop() + ')').join(', ');
 
   const e = (v) => escapeHtml(v == null ? '' : String(v));
-  return `
+  const reportTable = `
 <table>
   <tr>
     <td class="title-cell" colspan="2" rowspan="2">종합소득세 신고대리보고서</td>
@@ -939,11 +1024,57 @@ function buildOneReportPage(item, dec){
     <td class="label">소득 종류</td>
     <td colspan="3">${e(pd.incomeTypes)}${pd.incomeEtc ? ' / 기타: ' + e(pd.incomeEtc) : ''}</td>
   </tr>
+  <tr>
+    <td class="label">첨부 자료 목록</td>
+    <td colspan="3" style="font-size:9.5pt;color:#444">${e(filesSummary)}</td>
+  </tr>
   <tr class="note-row">
     <td class="label">기타 특이사항</td>
     <td colspan="3"></td>
   </tr>
 </table>
+`;
+  /* 첨부 파일 페이지들 (이미지는 한 페이지씩, PDF는 안내 페이지) */
+  const attachmentPages = fileList.map(f => buildAttachmentPage(item, f)).join('');
+  return reportTable + attachmentPages;
+}
+
+function buildAttachmentPage(item, f){
+  const pd = item.public_data || {};
+  const targetName = pd.targetName || '';
+  const isImg = (f.mime || '').startsWith('image/');
+  const isPdf = (f.mime || '') === 'application/pdf';
+  const e = (v) => escapeHtml(v == null ? '' : String(v));
+  const sizeKB = ((f.size || 0) / 1024).toFixed(0);
+
+  let body;
+  if(isImg && f.dataUrl){
+    body = `<img src="${f.dataUrl}" style="max-width:100%; max-height:230mm" />`;
+  } else if(isPdf){
+    body = `<div style="margin:30mm 0; padding:10mm; border:2px dashed #888; color:#555; font-size:11pt">
+      📄 PDF 파일은 Word 문서에 자동 임베드되지 않습니다.<br>
+      파일명: <strong>${e(f.name)}</strong><br>
+      별도로 출력하시거나 viewer에서 다운로드 받아 함께 첨부해 주세요.
+    </div>`;
+  } else {
+    body = `<div style="margin:30mm 0; padding:10mm; border:2px dashed #888; color:#555; font-size:11pt">
+      📎 ${e(f.mime || '기타 파일')} 파일<br>
+      파일명: <strong>${e(f.name)}</strong><br>
+      별도 확인 필요
+    </div>`;
+  }
+
+  return `
+<br clear="all" style="mso-special-character:line-break;page-break-before:always" />
+<div style="text-align:center; padding:5mm 0">
+  <h3 style="font-size:13pt; margin:0 0 4mm; font-weight:bold">
+    [첨부] ${e(targetName)} — ${e(docKeyLabel(f.docKey))}
+  </h3>
+  <p style="font-size:9.5pt; color:#666; margin:0 0 6mm">
+    파일명: ${e(f.name)} · ${sizeKB}KB · ${e(f.mime || '?')}
+  </p>
+  ${body}
+</div>
 `;
 }
 
@@ -1013,7 +1144,7 @@ function buildExportRow(item, dec){
     '접수번호': item.id,
     '접수일시': fmtDate(item.submitted_at),
     '만료일': fmtDate(item.expires_at),
-    '상태': item.status || 'pending',
+    '상태': statusLabel(item.status || 'pending'),
     '신고대상자': pd.targetName || '',
     '의뢰자': pd.requesterName || '',
     '연락처': pd.phone || '',
@@ -1224,6 +1355,9 @@ function bytesToB64Local(bytes){
 
 function bizTypeLabel(b){
   return ({self:'일반',free:'프리랜서',rent:'부동산임대'})[b] || b || '-';
+}
+function statusLabel(s){
+  return ({pending:'🟡 대기', completed:'🟢 처리완료'})[s] || s || '-';
 }
 function formatDeps(arr){
   if(!Array.isArray(arr) || arr.length===0) return '(없음)';
