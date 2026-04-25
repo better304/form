@@ -97,6 +97,25 @@
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:4px}
   @keyframes spin{to{transform:rotate(360deg)}}
 
+  /* 다중 선택 / 큐 */
+  .col-check{width:36px;text-align:center}
+  .checkbox{cursor:pointer;width:16px;height:16px;accent-color:#2D5F3F}
+  .bulk-bar{display:none;margin:0 0 12px;padding:10px 14px;background:#FFF8E6;border-left:4px solid #E89A00;border-radius:8px;align-items:center;gap:10px;font-size:13px}
+  .bulk-bar.active{display:flex}
+  .bulk-bar .count{font-weight:700;color:#8A5500}
+  .queue-nav{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#F0F7EA;border-radius:8px;margin-bottom:14px;font-size:13px}
+  .queue-nav .pos{font-weight:700;color:#2D5F3F}
+  /* 설정 모달 섹션 */
+  .settings-sec{background:#FAFBF7;border:1px solid #E5E8DD;border-radius:10px;padding:14px;margin-bottom:12px}
+  .settings-sec h3{margin-top:0}
+  .settings-sec .hint{font-size:12px;color:#666;margin-bottom:10px}
+  .settings-sec input[type=password],
+  .settings-sec input[type=file]{width:100%;padding:10px 12px;border:1.5px solid #BFBFBF;border-radius:8px;font-size:13px;background:#fff;margin-bottom:8px}
+  .settings-sec input:focus{outline:none;border-color:#2D5F3F}
+  .settings-sec .msg{font-size:12px;min-height:16px;margin-top:6px}
+  .settings-sec .msg.ok{color:#2D5F3F;font-weight:600}
+  .settings-sec .msg.err{color:#D33;font-weight:600}
+
   .secret-area{padding:12px;background:#F5F0EA;border-radius:8px;margin-top:8px}
   .secret-area details{margin-bottom:6px}
   .secret-area summary{cursor:pointer;font-size:12px;color:#666;padding:2px 0}
@@ -109,6 +128,7 @@
   <div class="brand">더나은세무회계 · 접수 관리<small>E2EE Viewer</small></div>
   <div class="ctrl">
     <span class="ssn" id="ssnState">미로그인</span>
+    <button class="btn-link" id="btnSettings" style="display:none">⚙ 설정</button>
     <button class="btn-link" id="btnLogout" style="display:none">로그아웃</button>
   </div>
 </div>
@@ -137,10 +157,17 @@
       <span class="stat" id="stat"></span>
       <button class="btn ghost sm" id="btnRefresh">↻ 새로고침</button>
     </div>
+    <div class="bulk-bar" id="bulkBar">
+      <span class="count" id="bulkCount">0건 선택</span>
+      <button class="btn warn sm" id="btnBulkOpen">📂 선택 일괄 보기</button>
+      <button class="btn ghost sm" id="btnBulkClear">선택 해제</button>
+      <span style="margin-left:auto;font-size:11px;color:#888">개인키 한 번 입력으로 모두 복호화</span>
+    </div>
     <div class="list-card">
       <table>
         <thead>
           <tr>
+            <th class="col-check"><input type="checkbox" class="checkbox" id="checkAll" /></th>
             <th>접수일</th>
             <th>대상자</th>
             <th>연락처</th>
@@ -150,7 +177,7 @@
           </tr>
         </thead>
         <tbody id="rows">
-          <tr><td colspan="6" class="empty">로딩 중…</td></tr>
+          <tr><td colspan="7" class="empty">로딩 중…</td></tr>
         </tbody>
       </table>
     </div>
@@ -162,6 +189,11 @@
 <div class="modal" id="detailModal">
   <div class="modal-card">
     <button class="close-x" data-close>×</button>
+    <div class="queue-nav" id="queueNav" style="display:none">
+      <button class="btn ghost sm" id="btnQueuePrev">← 이전</button>
+      <span class="pos" id="queuePos">1 / 1</span>
+      <button class="btn sm" id="btnQueueNext">다음 →</button>
+    </div>
     <h2 id="detailTitle">접수 상세</h2>
     <p style="color:#888;font-size:12px;margin-bottom:14px" id="detailSub"></p>
 
@@ -187,6 +219,39 @@
     <div style="display:flex;justify-content:space-between;gap:8px;margin-top:20px;padding-top:14px;border-top:1px solid #EAEAEA">
       <button class="btn ghost" data-close>닫기</button>
       <button class="btn danger" id="btnComplete">✓ 처리완료 (즉시 삭제)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 설정 모달 ── -->
+<div class="modal" id="settingsModal">
+  <div class="modal-card" style="max-width:520px">
+    <button class="close-x" data-close-s>×</button>
+    <h2>⚙ 설정</h2>
+
+    <!-- 관리자 비밀번호 변경 -->
+    <div class="settings-sec">
+      <h3>🔑 관리자 로그인 비밀번호 변경</h3>
+      <p class="hint">viewer.html 로그인할 때 사용하는 비밀번호입니다.</p>
+      <input type="password" id="curAdminPwd" placeholder="현재 비밀번호" autocomplete="current-password" />
+      <input type="password" id="newAdminPwd" placeholder="새 비밀번호 (12자 이상)" autocomplete="new-password" />
+      <input type="password" id="newAdminPwd2" placeholder="새 비밀번호 확인" autocomplete="new-password" />
+      <button class="btn" id="btnChangeAdminPwd">변경하기</button>
+      <div class="msg" id="adminPwdMsg"></div>
+    </div>
+
+    <!-- 개인키 비밀번호 변경 -->
+    <div class="settings-sec">
+      <h3>🔐 개인키(privatekey.enc) 비밀번호 변경</h3>
+      <p class="hint">기존 개인키를 새 비밀번호로 다시 암호화한 새 파일을 다운로드합니다. 모두 브라우저 안에서만 처리됩니다.</p>
+      <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px">현재 privatekey.enc</label>
+      <input type="file" id="oldPrivFile" accept=".enc,application/json" />
+      <input type="password" id="oldPrivPwd" placeholder="현재 개인키 비밀번호" autocomplete="off" />
+      <input type="password" id="newPrivPwd" placeholder="새 개인키 비밀번호 (12자 이상)" autocomplete="off" />
+      <input type="password" id="newPrivPwd2" placeholder="새 개인키 비밀번호 확인" autocomplete="off" />
+      <button class="btn" id="btnChangePrivPwd">재암호화 + 새 파일 다운로드</button>
+      <div class="msg" id="privPwdMsg"></div>
+      <p class="hint" style="margin-top:8px">⚠ 새 파일을 받으면 기존 privatekey.enc는 안전하게 폐기 또는 백업 교체. 공개키(publickey.pem)는 그대로 사용 가능 (키쌍 자체는 변하지 않음).</p>
     </div>
   </div>
 </div>
@@ -231,7 +296,10 @@ const state = {
   items: [],
   current: null,    // 현재 열린 item
   decrypted: null,  // { sensitive: object, files: [{name, mime, blob, url}] }
-  masked: true
+  masked: true,
+  selected: new Set(),  // 다중 선택된 ID
+  queue: [],            // 큐 모드 ID 배열
+  queueIdx: 0           // 큐 현재 위치
 };
 
 /* ════════════════════════════════════════════════════
@@ -308,6 +376,7 @@ async function doLogin(){
     $('#ssnState').textContent = '로그인됨';
     $('#ssnState').classList.add('ok');
     $('#btnLogout').style.display = '';
+    $('#btnSettings').style.display = '';
     hide('#login');
     $('#main').classList.add('active');
     resetIdleTimer();
@@ -328,6 +397,9 @@ function forceLogout(reason){
   $('#ssnState').textContent = '미로그인';
   $('#ssnState').classList.remove('ok');
   $('#btnLogout').style.display = 'none';
+  $('#btnSettings').style.display = 'none';
+  state.selected.clear();
+  state.queue = []; state.queueIdx = 0;
   $('#main').classList.remove('active');
   show('#login');
   $('#detailModal').classList.remove('active');
@@ -359,37 +431,274 @@ function renderList(){
   $('#stat').textContent = `총 ${state.items.length}건` + (q ? ` (검색결과 ${filtered.length})` : '');
 
   if(filtered.length === 0){
-    $('#rows').innerHTML = '<tr><td colspan="6" class="empty">데이터 없음</td></tr>';
+    $('#rows').innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>';
+    updateBulkBar();
     return;
   }
   $('#rows').innerHTML = filtered.map(it => {
     const status = it.status || 'pending';
+    const checked = state.selected.has(it.id) ? 'checked' : '';
     return `<tr class="row" data-id="${escapeHtml(it.id)}">
+      <td class="col-check"><input type="checkbox" class="checkbox row-check" data-id="${escapeHtml(it.id)}" ${checked} /></td>
       <td>${escapeHtml(fmtDate(it.submitted_at))}</td>
       <td><strong>${escapeHtml(it.target_name||'-')}</strong></td>
       <td>${escapeHtml(it.phone||'-')}</td>
-      <td>${escapeHtml(it.bizType||'-')}</td>
+      <td>${escapeHtml(bizTypeLabel(it.bizType))}</td>
       <td><span class="pill ${status}">${status}</span></td>
       <td style="font-size:11px;color:#888">${escapeHtml(fmtDate(it.expires_at))}</td>
     </tr>`;
   }).join('');
 
-  $$('.row').forEach(tr => tr.addEventListener('click', () => openDetail(tr.dataset.id)));
+  /* 행 클릭(체크박스 영역 제외) → 단건 상세 */
+  $$('.row').forEach(tr => tr.addEventListener('click', e => {
+    if(e.target.closest('.col-check')) return; /* 체크박스 클릭은 행 클릭 무시 */
+    openDetail(tr.dataset.id, /*queueMode*/ false);
+  }));
+  /* 체크박스 토글 */
+  $$('.row-check').forEach(cb => cb.addEventListener('change', e => {
+    e.stopPropagation();
+    const id = cb.dataset.id;
+    if(cb.checked) state.selected.add(id);
+    else state.selected.delete(id);
+    updateBulkBar();
+    syncCheckAll();
+  }));
+  syncCheckAll();
+  updateBulkBar();
+}
+
+function updateBulkBar(){
+  const n = state.selected.size;
+  $('#bulkCount').textContent = `${n}건 선택`;
+  $('#bulkBar').classList.toggle('active', n > 0);
+}
+function syncCheckAll(){
+  const all = $$('.row-check');
+  const ca = $('#checkAll');
+  if(all.length === 0){ ca.checked = false; ca.indeterminate = false; return; }
+  const checkedCount = all.filter(c => c.checked).length;
+  ca.checked = checkedCount === all.length;
+  ca.indeterminate = checkedCount > 0 && checkedCount < all.length;
 }
 
 /* ════════════════════════════════════════════════════
  * 상세 보기
  * ════════════════════════════════════════════════════ */
-async function openDetail(id){
+async function openDetail(id, queueMode){
   try{
     const r = await api(`/api/item/${id}`);
     state.current = r.item;
     cleanupDecrypted();
     renderDetail();
+    renderQueueNav(queueMode === true);
     $('#detailModal').classList.add('active');
+    /* 큐 모드 + 개인키 이미 로드된 상태면 자동 복호화 */
+    if(queueMode && state.privKey) await decryptCurrent();
   }catch(err){
     toast('불러오기 실패: ' + err.message, 4000);
   }
+}
+
+function renderQueueNav(isQueue){
+  if(!isQueue || state.queue.length <= 1){
+    $('#queueNav').style.display = 'none';
+    return;
+  }
+  $('#queueNav').style.display = '';
+  $('#queuePos').textContent = `${state.queueIdx + 1} / ${state.queue.length}`;
+  $('#btnQueuePrev').disabled = state.queueIdx <= 0;
+  $('#btnQueueNext').disabled = state.queueIdx >= state.queue.length - 1;
+}
+
+async function queueGoto(delta){
+  const newIdx = state.queueIdx + delta;
+  if(newIdx < 0 || newIdx >= state.queue.length) return;
+  state.queueIdx = newIdx;
+  await openDetail(state.queue[newIdx], true);
+}
+
+$('#btnQueuePrev').addEventListener('click', () => queueGoto(-1));
+$('#btnQueueNext').addEventListener('click', () => queueGoto(1));
+
+/* 일괄 보기 — 큐 모드 진입 */
+$('#btnBulkOpen').addEventListener('click', () => {
+  if(state.selected.size === 0) return;
+  /* 목록 표시 순서대로 큐 구성 */
+  const set = state.selected;
+  state.queue = state.items.filter(it => set.has(it.id)).map(it => it.id);
+  state.queueIdx = 0;
+  openDetail(state.queue[0], true);
+});
+
+$('#btnBulkClear').addEventListener('click', () => {
+  state.selected.clear();
+  renderList();
+});
+
+$('#checkAll').addEventListener('change', e => {
+  const visible = $$('.row-check').map(c => c.dataset.id);
+  if(e.target.checked) visible.forEach(id => state.selected.add(id));
+  else visible.forEach(id => state.selected.delete(id));
+  renderList();
+});
+
+/* ════════════════════════════════════════════════════
+ * 설정 모달 — 비밀번호 변경
+ * ════════════════════════════════════════════════════ */
+$('#btnSettings').addEventListener('click', () => {
+  ['curAdminPwd','newAdminPwd','newAdminPwd2','oldPrivPwd','newPrivPwd','newPrivPwd2'].forEach(id=>{ const el=$('#'+id); if(el) el.value=''; });
+  $('#oldPrivFile').value='';
+  $('#adminPwdMsg').textContent='';
+  $('#privPwdMsg').textContent='';
+  $('#settingsModal').classList.add('active');
+});
+document.addEventListener('click', e => {
+  if(e.target.matches('[data-close-s]')) $('#settingsModal').classList.remove('active');
+});
+
+/* 관리자 비밀번호 변경 */
+$('#btnChangeAdminPwd').addEventListener('click', async () => {
+  const cur = $('#curAdminPwd').value;
+  const next = $('#newAdminPwd').value;
+  const next2 = $('#newAdminPwd2').value;
+  const msg = $('#adminPwdMsg');
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  if(!cur || !next || !next2){ msg.classList.add('err'); msg.textContent='모든 칸을 채워주세요'; return; }
+  if(next.length < 12){ msg.classList.add('err'); msg.textContent='새 비밀번호는 12자 이상'; return; }
+  if(next !== next2){ msg.classList.add('err'); msg.textContent='새 비밀번호 확인이 일치하지 않습니다'; return; }
+  if(cur === next){ msg.classList.add('err'); msg.textContent='현재 비밀번호와 다른 값으로 설정해 주세요'; return; }
+
+  $('#btnChangeAdminPwd').disabled = true;
+  $('#btnChangeAdminPwd').innerHTML = '<span class="spinner"></span>변경 중…';
+
+  try{
+    await api('/api/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword: cur, newPassword: next })
+    });
+    msg.classList.add('ok');
+    msg.textContent = '✓ 변경 완료. 다음 로그인부터 새 비밀번호 사용';
+    ['curAdminPwd','newAdminPwd','newAdminPwd2'].forEach(id=>$('#'+id).value='');
+    setTimeout(()=>{
+      $('#settingsModal').classList.remove('active');
+      forceLogout('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.');
+    }, 1500);
+  }catch(err){
+    msg.classList.add('err');
+    msg.textContent = '실패: ' + err.message;
+  }finally{
+    $('#btnChangeAdminPwd').disabled = false;
+    $('#btnChangeAdminPwd').textContent = '변경하기';
+  }
+});
+
+/* 개인키 비밀번호 변경 (클라이언트 전용) */
+$('#btnChangePrivPwd').addEventListener('click', async () => {
+  const file = $('#oldPrivFile').files[0];
+  const oldPwd = $('#oldPrivPwd').value;
+  const newPwd = $('#newPrivPwd').value;
+  const newPwd2 = $('#newPrivPwd2').value;
+  const msg = $('#privPwdMsg');
+  msg.className = 'msg';
+  msg.textContent = '';
+
+  if(!file){ msg.classList.add('err'); msg.textContent='기존 privatekey.enc 파일을 선택하세요'; return; }
+  if(!oldPwd || !newPwd || !newPwd2){ msg.classList.add('err'); msg.textContent='모든 칸을 채워주세요'; return; }
+  if(newPwd.length < 12){ msg.classList.add('err'); msg.textContent='새 비밀번호는 12자 이상'; return; }
+  if(newPwd !== newPwd2){ msg.classList.add('err'); msg.textContent='새 비밀번호 확인이 일치하지 않습니다'; return; }
+  if(oldPwd === newPwd){ msg.classList.add('err'); msg.textContent='현재 비밀번호와 다른 값으로 설정해 주세요'; return; }
+
+  $('#btnChangePrivPwd').disabled = true;
+  $('#btnChangePrivPwd').innerHTML = '<span class="spinner"></span>처리 중…';
+
+  let pkcs8 = null;
+  try{
+    const text = await file.text();
+    let env;
+    try { env = JSON.parse(text); }
+    catch(e){ throw new Error('파일 형식 오류 (JSON 아님)'); }
+    if(env.format !== 'donaeun-enc-1') throw new Error('지원하지 않는 파일 형식');
+
+    /* 1. 현재 비번으로 복호화 */
+    const oldSalt = b64ToBytes(env.salt);
+    const oldIv = b64ToBytes(env.iv);
+    const oldCt = b64ToBytes(env.ciphertext);
+    const oldPassKey = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(oldPwd),
+      'PBKDF2', false, ['deriveKey']
+    );
+    const oldAesKey = await crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt:oldSalt, iterations:env.iterations, hash:'SHA-256' },
+      oldPassKey, { name:'AES-GCM', length:256 }, false, ['decrypt']
+    );
+    try {
+      pkcs8 = await crypto.subtle.decrypt({ name:'AES-GCM', iv:oldIv }, oldAesKey, oldCt);
+    } catch(e) {
+      throw new Error('현재 비밀번호가 틀렸거나 파일이 손상되었습니다');
+    }
+
+    /* 2. 새 비번으로 재암호화 */
+    const ITERATIONS = 100000; /* keygen.html과 동일 */
+    const newSalt = crypto.getRandomValues(new Uint8Array(16));
+    const newIv = crypto.getRandomValues(new Uint8Array(12));
+    const newPassKey = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(newPwd),
+      'PBKDF2', false, ['deriveKey']
+    );
+    const newAesKey = await crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt:newSalt, iterations:ITERATIONS, hash:'SHA-256' },
+      newPassKey, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']
+    );
+    const newCt = await crypto.subtle.encrypt({ name:'AES-GCM', iv:newIv }, newAesKey, pkcs8);
+
+    /* 3. 자기검증 */
+    const verify = await crypto.subtle.decrypt({ name:'AES-GCM', iv:newIv }, newAesKey, newCt);
+    const a = new Uint8Array(verify);
+    const b = new Uint8Array(pkcs8);
+    if(a.length !== b.length) throw new Error('자기검증 실패');
+    for(let i=0;i<a.length;i++) if(a[i]!==b[i]) throw new Error('자기검증 실패');
+
+    /* 4. 봉투 + 다운로드 */
+    const newEnv = {
+      format: 'donaeun-enc-1',
+      kdf: 'PBKDF2-SHA256',
+      iterations: ITERATIONS,
+      salt: bytesToB64Local(newSalt),
+      iv: bytesToB64Local(newIv),
+      ciphertext: bytesToB64Local(new Uint8Array(newCt)),
+      generated_at: new Date().toISOString(),
+      reencrypted_from: env.generated_at || null
+    };
+    const blob = new Blob([JSON.stringify(newEnv, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a2 = document.createElement('a');
+    a2.href = url; a2.download = 'privatekey.enc';
+    document.body.appendChild(a2); a2.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a2.remove(); }, 0);
+
+    msg.classList.add('ok');
+    msg.textContent = '✓ 새 privatekey.enc 다운로드됨. 기존 파일은 안전하게 폐기/교체하세요.';
+    ['oldPrivPwd','newPrivPwd','newPrivPwd2'].forEach(id=>$('#'+id).value='');
+    $('#oldPrivFile').value='';
+  }catch(err){
+    msg.classList.add('err');
+    msg.textContent = '실패: ' + err.message;
+  }finally{
+    /* 평문 PKCS8 메모리 정리 */
+    pkcs8 = null;
+    $('#btnChangePrivPwd').disabled = false;
+    $('#btnChangePrivPwd').textContent = '재암호화 + 새 파일 다운로드';
+  }
+});
+
+/* base64 인코딩 헬퍼 (큰 배열 안전 처리) */
+function bytesToB64Local(bytes){
+  let s = '';
+  const CHUNK = 0x8000;
+  for(let i=0;i<bytes.length;i+=CHUNK) s += String.fromCharCode.apply(null, bytes.subarray(i, i+CHUNK));
+  return btoa(s);
 }
 
 function renderDetail(){
@@ -640,9 +949,25 @@ $('#btnComplete').addEventListener('click', async () => {
   if(!state.current) return;
   if(!confirm(`정말 삭제하시겠습니까?\n${state.current.public_data && state.current.public_data.targetName}\n\n이 작업은 되돌릴 수 없습니다.`)) return;
   try{
+    const deletedId = state.current.id;
     await api(`/api/item/${state.current.id}`, { method:'DELETE' });
     toast('✓ 삭제 완료');
-    closeDetail();
+
+    /* 큐 모드: 큐에서 제거 후 다음 항목으로 자동 이동 */
+    const inQueue = state.queue.length > 1;
+    if(inQueue){
+      state.queue.splice(state.queueIdx, 1);
+      state.selected.delete(deletedId);
+      if(state.queue.length === 0){
+        closeDetail();
+      } else {
+        if(state.queueIdx >= state.queue.length) state.queueIdx = state.queue.length - 1;
+        await openDetail(state.queue[state.queueIdx], true);
+      }
+    } else {
+      state.selected.delete(deletedId);
+      closeDetail();
+    }
     await loadList();
   }catch(err){
     toast('삭제 실패: ' + err.message, 4000);
@@ -656,6 +981,10 @@ function closeDetail(){
   $('#detailModal').classList.remove('active');
   cleanupDecrypted();
   state.current = null;
+  /* 큐 모드 종료 */
+  state.queue = [];
+  state.queueIdx = 0;
+  $('#queueNav').style.display = 'none';
 }
 function cleanupDecrypted(){
   if(state.decrypted){
