@@ -275,8 +275,13 @@ async function api(path, opts={}){
   let data;
   try { data = await res.json(); } catch(e) { data = { ok:false, error:'Bad response' }; }
   if(res.status === 401){
-    forceLogout('세션이 만료되었습니다. 다시 로그인해 주세요.');
-    throw new Error('Unauthorized');
+    /* 로그인 자체의 401은 비밀번호 오류이므로 세션 만료로 처리하지 않음 */
+    if(path !== '/api/login'){
+      forceLogout('세션이 만료되었습니다. 다시 로그인해 주세요.');
+    }
+    const err = new Error(data.error || 'Unauthorized');
+    err.status = 401;
+    throw err;
   }
   if(!res.ok || !data.ok){
     throw new Error(data.error || `HTTP ${res.status}`);
