@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="robots" content="noindex,nofollow,noarchive" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'none'; img-src 'self' data:; form-action 'none'; frame-ancestors 'none'; base-uri 'none';" />
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+<title>키 생성 도구 · 세무사 전용 (더나은세무회계)</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#1A1A1A;background:#FAFBF7;line-height:1.55;font-size:14px;max-width:720px;margin:0 auto}
+  h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin:0 0 8px}
+  h2{font-size:17px;font-weight:700;margin:0 0 10px}
+  h3{font-size:15px;font-weight:700;margin:0 0 8px}
+  p{margin:0 0 10px}
+  .banner{background:#FFECEC;border-left:4px solid #D33;padding:14px 16px;border-radius:8px;margin-bottom:20px;font-size:13px}
+  .banner strong{color:#A02020}
+  .card{background:#fff;border:1px solid #EAEAEA;border-radius:12px;padding:18px;margin-bottom:14px}
+  .card.done{border-color:#4E8B3A;background:#F0F7EA}
+  .card.warn{border-color:#E89A00;background:#FFF8E6}
+  textarea{width:100%;font-family:Consolas,Monaco,"Courier New",monospace;font-size:11px;padding:10px;border:1px solid #BFBFBF;border-radius:6px;background:#FAFAFA;resize:vertical}
+  input[type=password],input[type=text]{width:100%;padding:11px 13px;border:1.5px solid #BFBFBF;border-radius:8px;font-size:14px;background:#fff;-webkit-appearance:none;font-family:inherit}
+  input:focus{outline:none;border-color:#2D5F3F}
+  label{display:block;margin-bottom:10px;font-size:13px;font-weight:600;color:#333}
+  label small{font-weight:400;color:#888;margin-left:4px}
+  button{font:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:8px;font-weight:700;font-size:14px;border:none;background:#2D5F3F;color:#fff}
+  button:hover:not(:disabled){background:#1F4429}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.ghost{background:#fff;border:1.5px solid #BFBFBF;color:#333}
+  button.full{width:100%}
+  .spinner{width:36px;height:36px;border:4px solid #E6F4DB;border-top-color:#2D5F3F;border-radius:50%;animation:spin .8s linear infinite;margin:14px auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .meter{height:6px;background:#EEE;border-radius:999px;margin:6px 0;overflow:hidden}
+  .meter-bar{height:100%;background:#D33;width:0;transition:all .2s}
+  .meter-bar.s2{background:#E89A00;width:33%}
+  .meter-bar.s3{background:#FFCB35;width:66%}
+  .meter-bar.s4{background:#4E8B3A;width:100%}
+  .hint{font-size:12px;color:#666;margin-top:4px}
+  .ok{color:#2D5F3F;font-weight:700}
+  .err{color:#D33;font-weight:700}
+  .step-num{display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;background:#2D5F3F;color:#fff;border-radius:50%;font-size:12px;font-weight:700;margin-right:6px}
+  ol{padding-left:18px;margin:8px 0}
+  ol li{margin-bottom:6px;font-size:13px}
+  code{background:#F1EFE8;padding:1px 6px;border-radius:4px;font-size:12px;font-family:Consolas,Monaco,monospace}
+</style>
+</head>
+<body>
+
+<h1>🔐 세무사 키 생성 도구</h1>
+<p style="color:#666;font-size:13px;margin:0 0 18px">더나은세무회계 · 종단간 암호화(E2EE) 키 쌍 생성기</p>
+
+<div class="banner">
+  <strong>⚠ 매우 중요</strong><br>
+  • 이 페이지는 <strong>세무사 본인 PC에서만</strong> 실행하세요. 인터넷이 끊겨 있어도 동작합니다.<br>
+  • 다운로드된 <code>privatekey.enc</code>와 비밀번호는 USB 등 별도 매체에 백업하세요.<br>
+  • <strong>분실 시 의뢰자가 보낸 모든 데이터를 복구할 방법이 없습니다.</strong><br>
+  • 페이지를 새로고침하거나 닫으면 메모리에서 키가 즉시 삭제됩니다.
+</div>
+
+<!-- 1. 키 생성 -->
+<div class="card" id="card-gen">
+  <h2><span class="step-num">1</span>키 쌍 생성</h2>
+  <p>브라우저 내에서 <strong>RSA-OAEP 4096비트</strong> 키 쌍을 만듭니다. 약 5~15초 걸립니다.</p>
+  <button id="btnGenerate" class="full">🔑 키 생성 시작</button>
+  <div id="genStatus" style="display:none;text-align:center;padding:14px 0">
+    <div class="spinner"></div>
+    <p style="font-size:13px;color:#666">키 생성 중… 페이지를 닫지 마세요.</p>
+  </div>
+</div>
+
+<!-- 2. 공개키 -->
+<div class="card" id="card-pub" style="display:none">
+  <h2><span class="step-num">2</span>공개키 (publickey.pem)</h2>
+  <p>이 파일은 <strong>의뢰자 폼 사이트에 공개</strong>됩니다. 의뢰자 브라우저가 민감정보를 암호화할 때 사용합니다.</p>
+  <textarea id="pubkeyText" readonly rows="10" onclick="this.select()"></textarea>
+  <div style="margin-top:10px">
+    <button id="btnDownloadPub">⬇ publickey.pem 다운로드</button>
+    <button class="ghost" id="btnCopyPub">📋 클립보드 복사</button>
+  </div>
+</div>
+
+<!-- 3. 비밀번호 -->
+<div class="card" id="card-pwd" style="display:none">
+  <h2><span class="step-num">3</span>개인키 보호 비밀번호 설정</h2>
+  <p>개인키 파일은 비밀번호로 한 번 더 암호화됩니다. <strong>이 비밀번호도 잊지 마세요.</strong></p>
+  <label>비밀번호 <small>(12자 이상 · 영문 대소문자·숫자·특수문자 혼합 권장)</small>
+    <input type="password" id="pwd1" autocomplete="new-password" />
+  </label>
+  <div class="meter"><div class="meter-bar" id="pwdMeter"></div></div>
+  <div class="hint" id="pwdHint">아직 입력 전</div>
+  <label style="margin-top:10px">비밀번호 확인
+    <input type="password" id="pwd2" autocomplete="new-password" />
+  </label>
+  <div class="hint" id="pwdMatch"></div>
+  <div style="margin-top:14px">
+    <button id="btnEncryptPriv" disabled>🔒 개인키 암호화 + 자기검증</button>
+  </div>
+</div>
+
+<!-- 4. 개인키 다운로드 -->
+<div class="card warn" id="card-priv" style="display:none">
+  <h2><span class="step-num">4</span>개인키 다운로드 (privatekey.enc)</h2>
+  <p><strong>이 파일과 비밀번호는 세무사 PC + USB 백업에만 보관하세요.</strong></p>
+  <p class="hint">자기검증 결과: <span id="selfTest">대기 중</span></p>
+  <div style="margin-top:10px">
+    <button id="btnDownloadPriv">⬇ privatekey.enc 다운로드</button>
+  </div>
+</div>
+
+<!-- 5. 다음 단계 -->
+<div class="card done" id="card-final" style="display:none">
+  <h2>✅ 키 생성 완료</h2>
+  <ol>
+    <li><strong>publickey.pem</strong> → 폼 사이트 (better304.github.io/form/publickey.pem) 위치에 업로드</li>
+    <li><strong>privatekey.enc</strong> + 비밀번호 → USB 등 안전한 매체에 백업 (최소 2벌 권장)</li>
+    <li>비밀번호는 종이에 적어 별도 보관(브라우저·메모장 저장 금지)</li>
+    <li>이 페이지를 닫으면 모든 키가 메모리에서 삭제됩니다</li>
+    <li>키를 새로 생성하면 <strong>기존 의뢰자 데이터는 모두 복호화 불가</strong>해지므로 주의</li>
+  </ol>
+  <p style="background:#fff;padding:10px;border-radius:6px;font-size:12px;color:#666">
+    <strong>다음 Phase</strong> — Phase 2: 의뢰자 폼 페이지가 publickey.pem을 사용해 민감정보를 암호화하도록 수정.
+  </p>
+  <button class="ghost" onclick="if(confirm('정말 새로 시작할까요? 현재 키는 폐기됩니다.')) location.reload()">처음부터 다시</button>
+</div>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════════
+ * 더나은세무회계 — 키 생성 도구 (Phase 1)
+ *
+ * 이 스크립트는 외부 통신을 일절 하지 않습니다 (CSP connect-src 'none').
+ * Web Crypto API만 사용하며, 페이지 종료 시 메모리의 키는 자동 폐기됩니다.
+ *
+ * 책임 한계 (정책상 명시):
+ *   - 본 시스템은 무상 개발됨
+ *   - 운영/관리 책임은 세무사에게 있음
+ *   - 개발자는 데이터 복호화 권한이 없음 (구조적으로 불가)
+ *   - 키 분실 시 데이터 복구 불가
+ *   - 사고 발생 시 책임은 개인정보처리자(세무사)에게 있음
+ * ════════════════════════════════════════════════════════════════ */
+
+const PBKDF2_ITERATIONS = 600000;        // OWASP 2023 권고
+const RSA_MODULUS_LENGTH = 4096;
+const FORMAT_VERSION = 'donaeun-enc-1';
+
+let state = {
+  keyPair: null,
+  pubkeyPem: '',
+  privBlob: null,            // Blob (privatekey.enc)
+  privFilename: 'privatekey.enc'
+};
+
+/* ── 공통 유틸 ─────────────────────────────────── */
+function $(s){ return document.querySelector(s); }
+function show(id){ $(id).style.display=''; }
+function hide(id){ $(id).style.display='none'; }
+
+function ab2b64(ab){
+  const bytes = new Uint8Array(ab);
+  let s = '';
+  for (let i=0;i<bytes.length;i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function b642ab(b64){
+  const s = atob(b64);
+  const bytes = new Uint8Array(s.length);
+  for (let i=0;i<s.length;i++) bytes[i] = s.charCodeAt(i);
+  return bytes.buffer;
+}
+function pemEncode(label, ab){
+  const b64 = ab2b64(ab);
+  const lines = b64.match(/.{1,64}/g).join('\n');
+  return `-----BEGIN ${label}-----\n${lines}\n-----END ${label}-----\n`;
+}
+function downloadBlob(filename, blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+/* ── 1. 키 쌍 생성 ─────────────────────────────── */
+$('#btnGenerate').addEventListener('click', async () => {
+  $('#btnGenerate').disabled = true;
+  $('#genStatus').style.display = 'block';
+  try {
+    state.keyPair = await crypto.subtle.generateKey(
+      {
+        name: 'RSA-OAEP',
+        modulusLength: RSA_MODULUS_LENGTH,
+        publicExponent: new Uint8Array([1, 0, 1]),
+        hash: 'SHA-256'
+      },
+      true,                            // extractable
+      ['encrypt', 'decrypt']
+    );
+
+    const spki = await crypto.subtle.exportKey('spki', state.keyPair.publicKey);
+    state.pubkeyPem = pemEncode('PUBLIC KEY', spki);
+
+    $('#pubkeyText').value = state.pubkeyPem;
+    show('#card-pub');
+    show('#card-pwd');
+    $('#genStatus').style.display = 'none';
+    $('#btnGenerate').textContent = '✅ 키 생성됨';
+  } catch (err) {
+    alert('키 생성 실패: ' + err.message);
+    $('#btnGenerate').disabled = false;
+    $('#genStatus').style.display = 'none';
+  }
+});
+
+/* ── 2. 공개키 다운로드/복사 ────────────────────── */
+$('#btnDownloadPub').addEventListener('click', () => {
+  const blob = new Blob([state.pubkeyPem], { type: 'application/x-pem-file' });
+  downloadBlob('publickey.pem', blob);
+});
+$('#btnCopyPub').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(state.pubkeyPem);
+    $('#btnCopyPub').textContent = '✓ 복사됨';
+    setTimeout(()=>{ $('#btnCopyPub').textContent = '📋 클립보드 복사'; }, 1500);
+  } catch (e) {
+    alert('복사 실패: 텍스트 박스를 직접 선택해 복사해 주세요');
+  }
+});
+
+/* ── 3. 비밀번호 강도 + 일치 검증 ───────────────── */
+function pwdScore(pw){
+  if (!pw) return 0;
+  let s = 0;
+  if (pw.length >= 12) s++;
+  if (pw.length >= 16) s++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++;
+  if (/[0-9]/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  return Math.min(s, 4);
+}
+function updatePwdUi(){
+  const p1 = $('#pwd1').value;
+  const p2 = $('#pwd2').value;
+  const score = pwdScore(p1);
+  const meter = $('#pwdMeter');
+  meter.className = 'meter-bar' + (score >= 1 ? ' s' + score : '');
+  $('#pwdHint').textContent = ['아직 입력 전','매우 약함','약함','적정','강함'][score] + (p1.length ? ` · ${p1.length}자` : '');
+  let matchOk = false;
+  if (!p2) {
+    $('#pwdMatch').textContent = '';
+  } else if (p1 === p2) {
+    $('#pwdMatch').innerHTML = '<span class="ok">✓ 일치</span>';
+    matchOk = true;
+  } else {
+    $('#pwdMatch').innerHTML = '<span class="err">✗ 일치하지 않음</span>';
+  }
+  $('#btnEncryptPriv').disabled = !(matchOk && p1.length >= 12);
+}
+$('#pwd1').addEventListener('input', updatePwdUi);
+$('#pwd2').addEventListener('input', updatePwdUi);
+
+/* ── 4. 개인키 암호화 + 자기검증 ────────────────── */
+$('#btnEncryptPriv').addEventListener('click', async () => {
+  const password = $('#pwd1').value;
+  $('#btnEncryptPriv').disabled = true;
+  $('#btnEncryptPriv').textContent = '암호화 중…';
+
+  try {
+    const pkcs8 = await crypto.subtle.exportKey('pkcs8', state.keyPair.privateKey);
+
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv   = crypto.getRandomValues(new Uint8Array(12));
+
+    const passKey = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(password),
+      'PBKDF2',
+      false,
+      ['deriveKey']
+    );
+    const aesKey = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+      passKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, pkcs8);
+
+    const envelope = {
+      format: FORMAT_VERSION,
+      kdf: 'PBKDF2-SHA256',
+      iterations: PBKDF2_ITERATIONS,
+      salt: ab2b64(salt),
+      iv: ab2b64(iv),
+      ciphertext: ab2b64(ciphertext),
+      generated_at: new Date().toISOString()
+    };
+    const json = JSON.stringify(envelope, null, 2);
+    state.privBlob = new Blob([json], { type: 'application/json' });
+
+    /* 자기검증: 방금 암호화한 결과를 복호화해서 원본과 비교 */
+    const verifyOk = await selfVerify(envelope, password, pkcs8);
+    if (!verifyOk) throw new Error('자기검증 실패 — 파일이 손상되었을 수 있습니다');
+
+    $('#selfTest').innerHTML = '<span class="ok">✓ 통과 (라운드트립 일치)</span>';
+    show('#card-priv');
+    show('#card-final');
+    $('#btnEncryptPriv').textContent = '✅ 암호화 완료';
+
+    /* 비밀번호는 더 이상 필요 없으므로 메모리에서 폐기 시도 */
+    $('#pwd1').value = '';
+    $('#pwd2').value = '';
+  } catch (err) {
+    alert('암호화 실패: ' + err.message);
+    $('#btnEncryptPriv').disabled = false;
+    $('#btnEncryptPriv').textContent = '🔒 개인키 암호화 + 자기검증';
+  }
+});
+
+async function selfVerify(envelope, password, originalPkcs8){
+  const passKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey']
+  );
+  const aesKey = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2',
+      salt: new Uint8Array(b642ab(envelope.salt)),
+      iterations: envelope.iterations,
+      hash: 'SHA-256' },
+    passKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: new Uint8Array(b642ab(envelope.iv)) },
+    aesKey,
+    b642ab(envelope.ciphertext)
+  );
+  const a = new Uint8Array(decrypted);
+  const b = new Uint8Array(originalPkcs8);
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/* ── 5. 개인키 파일 다운로드 ──────────────────── */
+$('#btnDownloadPriv').addEventListener('click', () => {
+  if (!state.privBlob) return;
+  downloadBlob(state.privFilename, state.privBlob);
+});
+
+/* ── 페이지 종료 시 메모리 폐기 ──────────────── */
+window.addEventListener('beforeunload', () => {
+  state.keyPair = null;
+  state.pubkeyPem = '';
+  state.privBlob = null;
+});
+
+/* ── 환경 점검 ────────────────────────────────── */
+(function envCheck(){
+  if (!window.crypto || !crypto.subtle) {
+    alert('이 브라우저는 Web Crypto API를 지원하지 않습니다. 최신 Chrome / Edge / Firefox / Safari에서 열어주세요.');
+    $('#btnGenerate').disabled = true;
+  }
+  if (location.protocol === 'http:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    alert('보안 경고: HTTP로 접속되었습니다. file:// 또는 HTTPS 환경에서 실행해 주세요.');
+  }
+})();
+</script>
+</body>
+</html>
