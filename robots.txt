@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /viewer.html
+Disallow: /privatekey.enc
+Disallow: /keygen.html
