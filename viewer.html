@@ -172,6 +172,7 @@
     <div class="bulk-bar" id="bulkBar">
       <span class="count" id="bulkCount">0건 선택</span>
       <button class="btn warn sm" id="btnBulkOpen">📂 선택 일괄 보기</button>
+      <button class="btn sm" id="btnBulkExport" style="background:#0c7c4a;color:#fff">📊 엑셀(CSV) 다운로드</button>
       <button class="btn ghost sm" id="btnBulkClear">선택 해제</button>
       <span style="margin-left:auto;font-size:11px;color:#888">개인키 한 번 입력으로 모두 복호화</span>
     </div>
@@ -420,6 +421,8 @@ function forceLogout(reason){
   state.selected.clear();
   state.queue = []; state.queueIdx = 0;
   collapseAllCards();
+  /* 깨끗한 상태로 강제 새로고침 (메모리·DOM·캐시 정리) */
+  setTimeout(() => location.reload(), 100);
   $('#main').classList.remove('active');
   show('#login');
   $('#detailModal').classList.remove('active');
@@ -517,31 +520,50 @@ async function expandCard(id, scroll){
     if(scroll !== false) exists.el.scrollIntoView({ behavior:'smooth', block:'center' });
     return;
   }
-  let item;
-  try{
-    const r = await api(`/api/item/${id}`);
-    item = r.item;
-  }catch(err){
-    toast('불러오기 실패: ' + err.message, 4000);
-    return;
-  }
 
+  /* ── 1단계: 카드 즉시 표시 (목록 메타데이터로 스켈레톤) ── */
+  const listItem = state.items.find(it => it.id === id) || { id };
   const tpl = $('#cardTemplate').content.cloneNode(true);
   const el = tpl.querySelector('.detail-card');
   el.dataset.cardId = id;
   $('#detailsArea').appendChild(el);
 
-  const ctx = { item, decrypted:null, masked:true, el };
+  const ctx = { item:null, decrypted:null, masked:true, el, loading:true };
   cards.set(id, ctx);
 
-  fillPublic(ctx);
+  fillPublicSkeleton(ctx, listItem);
   bindCardEvents(ctx);
   updateDetailsToolbar();
 
   if(scroll !== false) el.scrollIntoView({ behavior:'smooth', block:'start' });
 
-  /* 개인키 이미 메모리에 있으면 자동 복호화 */
-  if(state.privKey) await decryptCardItem(ctx);
+  /* ── 2단계: 백그라운드로 전체 데이터 가져와서 보강 ── */
+  try{
+    const r = await api(`/api/item/${id}`);
+    ctx.item = r.item;
+    ctx.loading = false;
+    fillPublic(ctx);
+    if(state.privKey) await decryptCardItem(ctx);
+  }catch(err){
+    toast('상세 불러오기 실패: ' + err.message, 4000);
+    collapseCard(id);
+  }
+}
+
+function fillPublicSkeleton(ctx, listItem){
+  ctx.el.querySelector('.card-title').textContent = (listItem.target_name || '-') + ' 접수';
+  ctx.el.querySelector('.card-sub').textContent = `⏳ 로딩 중… · 접수: ${fmtDate(listItem.submitted_at)}`;
+  const fields = [
+    ['신고대상자', listItem.target_name],
+    ['연락처', listItem.phone],
+    ['업종구분', bizTypeLabel(listItem.bizType)],
+    ['소득종류', '⏳'],
+    ['부양가족', '⏳'],
+    ['동의', '⏳']
+  ];
+  ctx.el.querySelector('.public-data').innerHTML = fields.map(([k,v])=>`
+    <div class="field-row"><div class="k">${k}</div><div class="v">${escapeHtml(v||'-')}</div></div>
+  `).join('');
 }
 
 function fillPublic(ctx){
@@ -748,6 +770,126 @@ $('#btnBulkClear').addEventListener('click', () => {
   state.selected.clear();
   renderList();
 });
+
+/* ════════════════════════════════════════════════════
+ * CSV 다운로드 — 선택된 항목들을 한 시트로
+ * ════════════════════════════════════════════════════ */
+let pendingExport = false;
+
+$('#btnBulkExport').addEventListener('click', async () => {
+  if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
+  if(!state.privKey){
+    pendingExport = true;
+    pendingDecryptCardId = null;
+    $('#decryptErr').textContent = '';
+    $('#privFile').value = '';
+    $('#privPwd').value = '';
+    $('#decryptModal').classList.add('active');
+    setTimeout(()=>$('#privFile').focus(), 100);
+    return;
+  }
+  await runExport();
+});
+
+async function runExport(){
+  if(state.selected.size === 0) return;
+  const ids = state.items.filter(it => state.selected.has(it.id)).map(it => it.id);
+
+  const total = ids.length;
+  toast(`복호화 중… (0/${total})`, 60000);
+
+  const rows = [];
+  let done = 0;
+  for(const id of ids){
+    try{
+      let item;
+      let dec;
+      const ctx = cards.get(id);
+      if(ctx && ctx.item && ctx.decrypted){
+        item = ctx.item;
+        dec = ctx.decrypted;
+      } else {
+        const r = await api(`/api/item/${id}`);
+        item = r.item;
+        dec = await decryptItemRaw(item);
+      }
+      rows.push(buildExportRow(item, dec));
+    }catch(err){
+      rows.push({ error: err.message, id });
+    }
+    done++;
+    toast(`복호화 중… (${done}/${total})`, 60000);
+  }
+
+  const csv = toCSV(rows);
+  const fname = `donaeun_export_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${total}건.csv`;
+  downloadCSV(csv, fname);
+  toast(`✓ ${total}건 엑셀로 다운로드 완료`, 3000);
+}
+
+/* 카드를 거치지 않고 직접 복호화 (export 전용) */
+async function decryptItemRaw(item){
+  const enc = item.encrypted;
+  const aesRaw = await crypto.subtle.decrypt({ name:'RSA-OAEP' }, state.privKey, b64ToBytes(enc.aes_key));
+  const aesKey = await crypto.subtle.importKey('raw', aesRaw, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+  const textBuf = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64ToBytes(enc.iv_text) }, aesKey, b64ToBytes(enc.text));
+  const sensitive = JSON.parse(new TextDecoder().decode(textBuf));
+  return { sensitive, fileCount: (enc.files||[]).length };
+}
+
+function buildExportRow(item, dec){
+  const pd = item.public_data || {};
+  const s = dec.sensitive || {};
+  const depPub = pd.dependents || [];
+  const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
+  const depCombined = depPub.map((p, i) => `${p.rel||''}_${p.name||''}_${depRrn[i]||''}`).join(' | ');
+
+  return {
+    '접수번호': item.id,
+    '접수일시': fmtDate(item.submitted_at),
+    '만료일': fmtDate(item.expires_at),
+    '상태': item.status || 'pending',
+    '신고대상자': pd.targetName || '',
+    '의뢰자': pd.requesterName || '',
+    '연락처': pd.phone || '',
+    '업종구분': bizTypeLabel(pd.bizType),
+    '주민번호': s.rrn || '',
+    '홈택스ID': s.hometax_id || '',
+    '홈택스PW': s.hometax_pw || '',
+    '소득종류': pd.incomeTypes || '',
+    '기타소득': pd.incomeEtc || '',
+    '부양가족(관계_이름_주민번호)': depCombined || '(없음)',
+    '진단결과': pd.quizResult || '',
+    '동의_필수1': pd.agree1 ? 'Y' : 'N',
+    '동의_필수2': pd.agree2 ? 'Y' : 'N',
+    '동의_마케팅': pd.agree3 ? 'Y' : 'N',
+    '첨부파일수': (dec.fileCount != null ? dec.fileCount : (dec.files||[]).length) || 0
+  };
+}
+
+function csvEscape(v){
+  const s = (v == null ? '' : String(v));
+  if(/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function toCSV(rows){
+  if(rows.length === 0) return '';
+  const headers = Object.keys(rows[0]).filter(k => k !== 'error');
+  const lines = [headers.map(csvEscape).join(',')];
+  for(const r of rows){
+    if(r.error){ lines.push(`"오류",${csvEscape(r.id)},,${csvEscape(r.error)}`); continue; }
+    lines.push(headers.map(h => csvEscape(r[h])).join(','));
+  }
+  return '\ufeff' + lines.join('\r\n');  /* UTF-8 BOM for Excel Korean */
+}
+function downloadCSV(content, filename){
+  const blob = new Blob([content], { type:'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
 
 $('#checkAll').addEventListener('change', e => {
   const visible = $$('.row-check').map(c => c.dataset.id);
@@ -989,6 +1131,11 @@ $('#btnUnlock').addEventListener('click', async () => {
     /* 나머지 카드도 복호화 */
     for(const [id, ctx] of cards) {
       if(!ctx.decrypted) await decryptCardItem(ctx);
+    }
+    /* 엑셀 다운로드 대기 중이었으면 진행 */
+    if(pendingExport){
+      pendingExport = false;
+      await runExport();
     }
   }catch(err){
     $('#decryptErr').textContent = err.message;
