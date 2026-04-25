@@ -112,9 +112,10 @@
   /* 다중 선택 / 큐 */
   .col-check{width:36px;text-align:center}
   .checkbox{cursor:pointer;width:16px;height:16px;accent-color:#2D5F3F}
-  .bulk-bar{display:none;margin:0 0 12px;padding:10px 14px;background:#FFF8E6;border-left:4px solid #E89A00;border-radius:8px;align-items:center;gap:10px;font-size:13px}
-  .bulk-bar.active{display:flex}
-  .bulk-bar .count{font-weight:700;color:#8A5500}
+  .bulk-bar{display:flex;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;background:#FFF8E6;border-left:4px solid #E89A00;border-radius:8px;align-items:center;gap:10px;font-size:13px}
+  .bulk-bar.has-selection{background:#FFE8B0;border-left-color:#D17A00}
+  .bulk-bar .count{font-weight:700;color:#8A5500;min-width:80px}
+  .bulk-bar .btn:disabled{opacity:.55}
   .queue-nav{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#F0F7EA;border-radius:8px;margin-bottom:14px;font-size:13px}
   .queue-nav .pos{font-weight:700;color:#2D5F3F}
   /* 설정 모달 섹션 */
@@ -171,10 +172,11 @@
     </div>
     <div class="bulk-bar" id="bulkBar">
       <span class="count" id="bulkCount">0건 선택</span>
-      <button class="btn warn sm" id="btnBulkOpen">📂 선택 일괄 보기</button>
-      <button class="btn sm" id="btnBulkExport" style="background:#0c7c4a;color:#fff">📊 엑셀(CSV) 다운로드</button>
+      <button class="btn warn sm" id="btnBulkOpen">📂 일괄 보기</button>
+      <button class="btn sm" id="btnBulkExport" style="background:#0c7c4a;color:#fff">📊 엑셀(CSV)</button>
+      <button class="btn sm" id="btnBulkWord" style="background:#1f4e79;color:#fff">📄 Word 보고서</button>
       <button class="btn ghost sm" id="btnBulkClear">선택 해제</button>
-      <span style="margin-left:auto;font-size:11px;color:#888">개인키 한 번 입력으로 모두 복호화</span>
+      <span style="margin-left:auto;font-size:11px;color:#888">행 체크박스로 선택 후 액션 실행</span>
     </div>
     <div class="list-card">
       <table>
@@ -495,7 +497,11 @@ function renderList(){
 function updateBulkBar(){
   const n = state.selected.size;
   $('#bulkCount').textContent = `${n}건 선택`;
-  $('#bulkBar').classList.toggle('active', n > 0);
+  $('#bulkBar').classList.toggle('has-selection', n > 0);
+  /* 선택 0건일 때 액션 버튼 비활성화 */
+  ['#btnBulkOpen','#btnBulkExport','#btnBulkWord','#btnBulkClear'].forEach(s => {
+    const b = $(s); if(b) b.disabled = n === 0;
+  });
 }
 function syncCheckAll(){
   const all = $$('.row-check');
@@ -780,6 +786,7 @@ $('#btnBulkExport').addEventListener('click', async () => {
   if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
   if(!state.privKey){
     pendingExport = true;
+    pendingWordExport = false;
     pendingDecryptCardId = null;
     $('#decryptErr').textContent = '';
     $('#privFile').value = '';
@@ -790,6 +797,164 @@ $('#btnBulkExport').addEventListener('click', async () => {
   }
   await runExport();
 });
+
+let pendingWordExport = false;
+$('#btnBulkWord').addEventListener('click', async () => {
+  if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
+  if(!state.privKey){
+    pendingWordExport = true;
+    pendingExport = false;
+    pendingDecryptCardId = null;
+    $('#decryptErr').textContent = '';
+    $('#privFile').value = '';
+    $('#privPwd').value = '';
+    $('#decryptModal').classList.add('active');
+    setTimeout(()=>$('#privFile').focus(), 100);
+    return;
+  }
+  await runWordExport();
+});
+
+async function runWordExport(){
+  if(state.selected.size === 0) return;
+  const ids = state.items.filter(it => state.selected.has(it.id)).map(it => it.id);
+  const total = ids.length;
+  toast(`보고서 생성 중… (0/${total})`, 60000);
+
+  const submissions = [];
+  let done = 0;
+  for(const id of ids){
+    try{
+      let item, dec;
+      const ctx = cards.get(id);
+      if(ctx && ctx.item && ctx.decrypted){
+        item = ctx.item; dec = ctx.decrypted;
+      } else {
+        const r = await api(`/api/item/${id}`);
+        item = r.item;
+        dec = await decryptItemRaw(item);
+      }
+      submissions.push({ item, dec });
+    }catch(err){
+      console.error('Word export failed for', id, err);
+    }
+    done++;
+    toast(`보고서 생성 중… (${done}/${total})`, 60000);
+  }
+
+  if(submissions.length === 0){ toast('생성 실패', 3000); return; }
+  const html = buildWordHtml(submissions);
+  const fname = `종합소득세_신고대리보고서_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${total}건.doc`;
+  downloadWord(html, fname);
+  toast(`✓ ${total}건 Word 보고서 다운로드 완료`, 3000);
+}
+
+function buildWordHtml(subs){
+  const pages = subs.map(({item, dec}, i) => {
+    const sep = i === 0 ? '' : '<br clear="all" style="mso-special-character:line-break;page-break-before:always" />';
+    return sep + buildOneReportPage(item, dec);
+  }).join('');
+  return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8" />
+<meta name="ProgId" content="Word.Document" />
+<title>종합소득세 신고대리보고서</title>
+<!--[if gte mso 9]><xml>
+<w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument>
+</xml><![endif]-->
+<style>
+@page WordSection1 { size:A4 portrait; margin:1.5cm 1.5cm 1.5cm 1.5cm; }
+div.WordSection1 { page:WordSection1; }
+body { font-family:'\\B9D1\\C740 \\ACE0\\B515','Malgun Gothic',sans-serif; font-size:10.5pt; }
+table { border-collapse:collapse; width:100%; margin-bottom:6pt; }
+td { border:1px solid #000; padding:3mm 4mm; vertical-align:middle; mso-border-alt:solid windowtext .5pt; }
+.title-cell { font-size:16pt; font-weight:bold; padding:5mm 4mm; }
+.label { background:#EFEFEF; font-weight:bold; }
+.note-row td { height:20mm; vertical-align:top; }
+</style>
+</head>
+<body>
+<div class="WordSection1">
+${pages}
+</div>
+</body>
+</html>`;
+}
+
+function buildOneReportPage(item, dec){
+  const pd = item.public_data || {};
+  const s = dec.sensitive || {};
+  const depPub = pd.dependents || [];
+  const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
+  const depLines = depPub.map((p, i) => `${p.rel||''} / ${p.name||''} / ${depRrn[i]||''}`).join('<br>') || '(없음)';
+
+  const e = (v) => escapeHtml(v == null ? '' : String(v));
+  return `
+<table>
+  <tr>
+    <td class="title-cell" colspan="2" rowspan="2">종합소득세 신고대리보고서</td>
+    <td class="label" style="width:13%">카톡</td>
+    <td style="width:18%"></td>
+  </tr>
+  <tr>
+    <td class="label">경로</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td class="label" style="width:18%">(신고자)성함</td>
+    <td style="width:30%">${e(pd.targetName)}</td>
+    <td class="label">업종<br><span style="font-weight:normal;font-size:9pt">(프리랜서, 임대업)</span></td>
+    <td>${e(bizTypeLabel(pd.bizType))}</td>
+  </tr>
+  <tr>
+    <td class="label">(의뢰자)성함</td>
+    <td colspan="3">${e(pd.requesterName)}</td>
+  </tr>
+  <tr>
+    <td class="label">전화</td>
+    <td>${e(pd.phone)}</td>
+    <td class="label">신고유형</td>
+    <td>신고대리</td>
+  </tr>
+  <tr>
+    <td class="label">수수료 측정</td>
+    <td></td>
+    <td class="label">부가가치세</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td class="label">주민등록번호</td>
+    <td colspan="3">${e(s.rrn)}</td>
+  </tr>
+  <tr>
+    <td class="label">홈택스 ID/PW</td>
+    <td colspan="3">${e(s.hometax_id)} / ${e(s.hometax_pw)}</td>
+  </tr>
+  <tr>
+    <td class="label">부양가족 공제대상<br><span style="font-weight:normal;font-size:9pt">(관계/성함/주민등록번호)</span></td>
+    <td colspan="3">${depLines}</td>
+  </tr>
+  <tr>
+    <td class="label">소득 종류</td>
+    <td colspan="3">${e(pd.incomeTypes)}${pd.incomeEtc ? ' / 기타: ' + e(pd.incomeEtc) : ''}</td>
+  </tr>
+  <tr class="note-row">
+    <td class="label">기타 특이사항</td>
+    <td colspan="3"></td>
+  </tr>
+</table>
+`;
+}
+
+function downloadWord(html, filename){
+  const blob = new Blob(['\ufeff' + html], { type:'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
 
 async function runExport(){
   if(state.selected.size === 0) return;
@@ -1132,10 +1297,14 @@ $('#btnUnlock').addEventListener('click', async () => {
     for(const [id, ctx] of cards) {
       if(!ctx.decrypted) await decryptCardItem(ctx);
     }
-    /* 엑셀 다운로드 대기 중이었으면 진행 */
+    /* 엑셀/Word 다운로드 대기 중이었으면 진행 */
     if(pendingExport){
       pendingExport = false;
       await runExport();
+    }
+    if(pendingWordExport){
+      pendingWordExport = false;
+      await runWordExport();
     }
   }catch(err){
     $('#decryptErr').textContent = err.message;
