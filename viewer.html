@@ -64,6 +64,9 @@
   tr.row:hover{background:#F0F7EA}
   tr.row.completed{opacity:.5}
   .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+  .pill.status-toggle{cursor:pointer;user-select:none;transition:transform .08s, box-shadow .08s}
+  .pill.status-toggle:hover{transform:scale(1.06);box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  .pill.status-toggle:active{transform:scale(0.98)}
   .pill.pending{background:#FFF5E0;color:#8A5500}
   .pill.viewing{background:#E6F1FB;color:#0C447C}
   .pill.completed{background:#F0F7EA;color:#2D5F3F}
@@ -77,9 +80,17 @@
   .modal-card .close-x:hover{color:#000}
   .modal-narrow .modal-card{max-width:420px}
 
-  .field-row{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #F2F2F2;font-size:13px}
+  .field-row{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #F2F2F2;font-size:13px;align-items:center}
   .field-row .k{flex:0 0 110px;color:#666;font-weight:600}
   .field-row .v{flex:1;word-break:break-all}
+  .copy-btn{flex:0 0 auto;background:#F0F0F0;border:1px solid #DDD;border-radius:4px;padding:3px 7px;font-size:11px;cursor:pointer;color:#555;transition:all .12s;line-height:1}
+  .copy-btn:hover{background:#2D5F3F;color:#fff;border-color:#2D5F3F}
+  .copy-btn.copied{background:#4E8B3A;color:#fff;border-color:#4E8B3A}
+  .field-edit{flex:1;padding:6px 10px;border:1.5px solid #2D5F3F;border-radius:6px;font-size:13px;background:#fff;font-family:inherit}
+  .file-card .delete-file{background:#fff;border:1.5px solid #D33;color:#D33;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer}
+  .file-card .delete-file:hover{background:#D33;color:#fff}
+  .edit-actions{display:flex;gap:6px;margin-top:14px;padding:10px;background:#FFF8E6;border-radius:8px}
+  .edit-mode-banner{padding:8px 12px;background:#FFE8B0;border-left:4px solid #E89A00;border-radius:6px;font-size:12px;color:#8A5500;margin-bottom:10px;font-weight:600}
   .sensitive .v{font-family:Consolas,monospace;background:#FFF5E0;padding:2px 8px;border-radius:4px;user-select:none;-webkit-user-select:none}
   .sensitive.unmasked .v{background:#F0F7EA}
   .file-card{background:#FAFBF7;border:1px solid #E5E8DD;border-radius:8px;padding:10px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
@@ -245,16 +256,14 @@
     </div>
 
     <footer class="card-foot">
-      <div class="status-control">
-        <label class="status-label">상태:</label>
-        <select class="card-status">
-          <option value="pending">🟡 대기</option>
-          <option value="completed">🟢 처리완료</option>
-        </select>
-        <span class="card-status-msg"></span>
-      </div>
+      <span class="status-display" style="font-size:12px;color:#666">
+        💡 상태 변경은 위 목록의 뱃지를 클릭하세요
+      </span>
       <div class="card-foot-right">
         <button class="btn ghost card-close-btn">닫기</button>
+        <button class="btn ghost card-edit" style="border-color:#1f4e79;color:#1f4e79">✏️ 편집</button>
+        <button class="btn card-save" style="display:none;background:#1f4e79;color:#fff">💾 저장</button>
+        <button class="btn ghost card-cancel" style="display:none">취소</button>
         <button class="btn danger card-delete">🗑 즉시 삭제</button>
       </div>
     </footer>
@@ -331,14 +340,32 @@ const IDLE_TIMEOUT_MS = 15 * 60 * 1000;   // 15분 무활동 자동 로그아웃
 const state = {
   jwt: null,
   privKey: null,    // CryptoKey (RSA-OAEP private)
+  pubKey: null,     // CryptoKey (RSA-OAEP public) — 편집 후 재암호화용
   items: [],
-  current: null,    // 현재 열린 item
-  decrypted: null,  // { sensitive: object, files: [{name, mime, blob, url}] }
+  current: null,
+  decrypted: null,
   masked: true,
-  selected: new Set(),  // 다중 선택된 ID
-  queue: [],            // 큐 모드 ID 배열
-  queueIdx: 0           // 큐 현재 위치
+  selected: new Set(),
+  queue: [],
+  queueIdx: 0
 };
+
+/* 공개키 로드 (편집 후 재암호화에 필요) */
+(async () => {
+  try{
+    const res = await fetch('publickey.pem', { cache:'no-store' });
+    if(!res.ok) return;
+    const pem = await res.text();
+    const b64 = pem.replace(/-----[^-]+-----/g,'').replace(/\s/g,'');
+    const spki = b64ToBytes(b64);
+    state.pubKey = await crypto.subtle.importKey(
+      'spki', spki,
+      { name:'RSA-OAEP', hash:'SHA-256' },
+      false, ['encrypt']
+    );
+    console.log('[edit] 공개키 로드 완료');
+  }catch(e){ console.warn('[edit] 공개키 로드 실패 — 편집 시 재암호화 불가:', e.message); }
+})();
 
 /* ════════════════════════════════════════════════════
  * 유틸
@@ -485,17 +512,23 @@ function renderList(){
       <td><strong>${escapeHtml(it.target_name||'-')}</strong></td>
       <td>${escapeHtml(it.phone||'-')}</td>
       <td>${escapeHtml(bizTypeLabel(it.bizType))}</td>
-      <td><span class="pill ${status}">${statusLabel(status)}</span></td>
+      <td><span class="pill ${status} status-toggle" data-id="${escapeHtml(it.id)}" title="클릭하여 상태 토글">${statusLabel(status)}</span></td>
       <td style="font-size:11px;color:#888">${escapeHtml(fmtDate(it.expires_at))}</td>
     </tr>`;
   }).join('');
 
-  /* 행 클릭(체크박스 영역 제외) → 인라인 카드 펼침/접기 토글 */
+  /* 행 클릭(체크박스/상태뱃지 영역 제외) → 인라인 카드 펼침/접기 토글 */
   $$('.row').forEach(tr => tr.addEventListener('click', e => {
     if(e.target.closest('.col-check')) return;
+    if(e.target.closest('.status-toggle')) return; /* 뱃지는 토글 전용 */
     const id = tr.dataset.id;
     if(cards.has(id)) collapseCard(id);
     else expandCard(id);
+  }));
+  /* 상태 뱃지 클릭 → 즉시 토글 (optimistic) */
+  $$('.status-toggle').forEach(pill => pill.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleItemStatus(pill.dataset.id);
   }));
   /* 체크박스 토글 */
   $$('.row-check').forEach(cb => cb.addEventListener('change', e => {
@@ -595,24 +628,28 @@ function fillPublic(ctx){
   ctx.el.querySelector('.card-sub').textContent = `ID: ${it.id} · 접수: ${fmtDate(it.submitted_at)} · 만료: ${fmtDate(it.expires_at)}`;
 
   const fields = [
-    ['신고대상자', pd.targetName],
-    ['의뢰자', pd.requesterName || '(없음)'],
-    ['연락처', pd.phone],
-    ['업종구분', bizTypeLabel(pd.bizType)],
-    ['소득종류', pd.incomeTypes],
-    ['기타소득', pd.incomeEtc || '(없음)'],
-    ['부양가족', formatDeps(pd.dependents)],
-    ['진단결과', pd.quizResult || '(없음)'],
-    ['동의', `필수1=${pd.agree1?'✓':'✗'} · 필수2=${pd.agree2?'✓':'✗'} · 마케팅=${pd.agree3?'✓':'✗'}`],
-    ['제출시각', fmtDate(pd.submittedAt)]
+    ['신고대상자',  pd.targetName, { copy:true, edit:'targetName' }],
+    ['의뢰자',     pd.requesterName, { copy:true, edit:'requesterName', placeholder:'(없음)' }],
+    ['연락처',     pd.phone, { copy:true, edit:'phone' }],
+    ['업종구분',   bizTypeLabel(pd.bizType)],
+    ['소득종류',   pd.incomeTypes, { edit:'incomeTypes' }],
+    ['기타소득',   pd.incomeEtc, { edit:'incomeEtc', placeholder:'(없음)' }],
+    ['부양가족',   formatDeps(pd.dependents)],
+    ['진단결과',   pd.quizResult || '(없음)'],
+    ['동의',       `필수1=${pd.agree1?'✓':'✗'} · 필수2=${pd.agree2?'✓':'✗'} · 마케팅=${pd.agree3?'✓':'✗'}`],
+    ['제출시각',   fmtDate(pd.submittedAt)]
   ];
-  ctx.el.querySelector('.public-data').innerHTML = fields.map(([k,v])=>`
-    <div class="field-row"><div class="k">${k}</div><div class="v">${escapeHtml(v||'-')}</div></div>
-  `).join('');
-
-  /* 상태 select 초기값 동기화 */
-  const statusSel = ctx.el.querySelector('.card-status');
-  if(statusSel) statusSel.value = it.status === 'completed' ? 'completed' : 'pending';
+  ctx.el.querySelector('.public-data').innerHTML = fields.map(([k,v,opt])=>{
+    const o = opt || {};
+    const display = (v == null || v === '') ? (o.placeholder || '-') : escapeHtml(v);
+    const copyBtn = (o.copy && v) ? `<button class="copy-btn" data-copy="${escapeHtml(v)}" title="복사">📋</button>` : '';
+    const editAttr = o.edit ? `data-edit-key="${o.edit}"` : '';
+    return `<div class="field-row" ${editAttr}>
+      <div class="k">${escapeHtml(k)}</div>
+      <div class="v" data-raw="${escapeHtml(v||'')}">${display}</div>
+      ${copyBtn}
+    </div>`;
+  }).join('');
 }
 
 function bindCardEvents(ctx){
@@ -636,36 +673,27 @@ function bindCardEvents(ctx){
     applyCardMask(ctx);
   });
 
-  /* 상태 변경 (대기 ↔ 처리완료) */
-  const statusSel = el.querySelector('.card-status');
-  statusSel.addEventListener('change', async () => {
-    const newStatus = statusSel.value;
-    const msgEl = el.querySelector('.card-status-msg');
-    statusSel.disabled = true;
-    msgEl.textContent = '저장 중…';
-    msgEl.style.color = '#888';
-    try{
-      await api(`/api/item/${ctx.item.id}`, {
-        method:'PATCH',
-        body: JSON.stringify({ status: newStatus })
-      });
-      ctx.item.status = newStatus;
-      /* 로컬 상태 즉시 갱신 (KV는 LIST 일관성 30~60초 필요) */
-      const li = state.items.find(it => it.id === ctx.item.id);
-      if(li) li.status = newStatus;
-      renderList();
-      msgEl.textContent = '✓ 변경됨';
-      msgEl.style.color = '#2D5F3F';
-      setTimeout(()=>{ msgEl.textContent = ''; }, 2000);
-    }catch(err){
-      msgEl.textContent = '실패: ' + err.message;
-      msgEl.style.color = '#D33';
-      /* 실패 시 원래 값으로 복원 */
-      statusSel.value = ctx.item.status || 'pending';
-    }finally{
-      statusSel.disabled = false;
+  /* 편집 모드 진입 */
+  el.querySelector('.card-edit').addEventListener('click', async () => {
+    if(!state.privKey){
+      toast('편집하려면 먼저 개인키 잠금 해제 필요', 4000);
+      el.querySelector('.card-decrypt').click();
+      return;
     }
+    if(!ctx.decrypted){
+      await decryptCardItem(ctx);
+      if(!ctx.decrypted) return;
+    }
+    if(!state.pubKey){
+      toast('공개키 로드 안 됨 — 새로고침 후 재시도', 4000);
+      return;
+    }
+    enterEditMode(ctx);
   });
+  /* 저장 */
+  el.querySelector('.card-save').addEventListener('click', () => saveEdit(ctx));
+  /* 취소 */
+  el.querySelector('.card-cancel').addEventListener('click', () => exitEditMode(ctx, /*reload*/false));
 
   /* 즉시 삭제 */
   el.querySelector('.card-delete').addEventListener('click', async () => {
@@ -745,23 +773,27 @@ function renderCardDecrypted(ctx){
   const s = ctx.decrypted.sensitive || {};
   const files = ctx.decrypted.files || [];
   const fields = [
-    ['주민번호', s.rrn || '-'],
-    ['홈택스 ID', s.hometax_id || '(없음)'],
-    ['홈택스 PW', s.hometax_pw || '(없음)']
+    ['주민번호',   s.rrn,        'rrn'],
+    ['홈택스 ID',  s.hometax_id, 'hometax_id'],
+    ['홈택스 PW',  s.hometax_pw, 'hometax_pw']
   ];
   const depPub = (ctx.item.public_data && ctx.item.public_data.dependents) || [];
   if(Array.isArray(s.dependents_rrn)){
     s.dependents_rrn.forEach((rrn, i) => {
       const p = depPub[i] || {};
-      fields.push([`부양가족 ${i+1} (${p.rel||''} ${p.name||''})`, rrn || '-']);
+      fields.push([`부양가족 ${i+1} (${p.rel||''} ${p.name||''})`, rrn, `dep_${i}`]);
     });
   }
-  ctx.el.querySelector('.sensitive-fields').innerHTML = fields.map(([k,v])=>`
-    <div class="field-row sensitive">
+  ctx.el.querySelector('.sensitive-fields').innerHTML = fields.map(([k,v,key])=>{
+    const raw = v || '';
+    const display = raw ? maskValue(raw) : '-';
+    const copyBtn = raw ? `<button class="copy-btn" data-copy="${escapeHtml(raw)}" title="복사">📋</button>` : '';
+    return `<div class="field-row sensitive" data-edit-key="${key}">
       <div class="k">${escapeHtml(k)}</div>
-      <div class="v" data-raw="${escapeHtml(v)}">${maskValue(v)}</div>
-    </div>
-  `).join('');
+      <div class="v" data-raw="${escapeHtml(raw)}">${display}</div>
+      ${copyBtn}
+    </div>`;
+  }).join('');
 
   ctx.el.querySelector('.file-list').innerHTML = files.length === 0
     ? '<p style="color:#888;font-size:12px">첨부된 파일 없음</p>'
@@ -782,6 +814,157 @@ function renderCardDecrypted(ctx){
   ctx.el.querySelector('.sensitive-data').style.display = '';
   ctx.masked = true;
   applyCardMask(ctx);
+}
+
+/* ════════════════════════════════════════════════════
+ * 편집 모드 — 공개+민감+첨부 모두 수정 가능
+ * ════════════════════════════════════════════════════ */
+function enterEditMode(ctx){
+  ctx.editing = true;
+  ctx.el.classList.add('editing');
+  /* 배너 */
+  if(!ctx.el.querySelector('.edit-mode-banner')){
+    const banner = document.createElement('div');
+    banner.className = 'edit-mode-banner';
+    banner.textContent = '✏️ 편집 모드 — 변경 후 [💾 저장]을 누르면 재암호화되어 서버에 저장됩니다.';
+    ctx.el.querySelector('.public-data').before(banner);
+  }
+  /* 공개 필드: data-edit-key 가진 행을 input으로 */
+  ctx.el.querySelectorAll('.public-data .field-row[data-edit-key]').forEach(row => {
+    const key = row.dataset.editKey;
+    const v = row.querySelector('.v');
+    const raw = v.dataset.raw || '';
+    v.innerHTML = `<input class="field-edit" data-edit-public="${key}" value="${escapeHtml(raw)}">`;
+  });
+  /* 민감 필드: 마스킹 풀고 input으로 */
+  ctx.el.querySelectorAll('.sensitive-fields .field-row[data-edit-key]').forEach(row => {
+    const key = row.dataset.editKey;
+    const v = row.querySelector('.v');
+    const raw = v.dataset.raw || '';
+    v.innerHTML = `<input class="field-edit" data-edit-sensitive="${key}" value="${escapeHtml(raw)}">`;
+  });
+  /* 파일 카드에 삭제 버튼 */
+  ctx.el.querySelectorAll('.file-list .file-card').forEach((fc, i) => {
+    if(fc.querySelector('.delete-file')) return;
+    const del = document.createElement('button');
+    del.className = 'delete-file';
+    del.textContent = '✕ 삭제';
+    del.dataset.fileIdx = i;
+    del.addEventListener('click', () => {
+      if(!confirm('이 파일을 제거하시겠습니까? (저장 시 영구 적용)')) return;
+      fc.style.display = 'none';
+      fc.dataset.deleted = '1';
+    });
+    fc.appendChild(del);
+  });
+  /* 버튼 토글 */
+  ctx.el.querySelector('.card-edit').style.display = 'none';
+  ctx.el.querySelector('.card-save').style.display = '';
+  ctx.el.querySelector('.card-cancel').style.display = '';
+}
+
+function exitEditMode(ctx, reload){
+  ctx.editing = false;
+  ctx.el.classList.remove('editing');
+  const banner = ctx.el.querySelector('.edit-mode-banner');
+  if(banner) banner.remove();
+  ctx.el.querySelector('.card-edit').style.display = '';
+  ctx.el.querySelector('.card-save').style.display = 'none';
+  ctx.el.querySelector('.card-cancel').style.display = 'none';
+  /* 다시 표시 모드로 — 원본 데이터로 재렌더 */
+  fillPublic(ctx);
+  if(ctx.decrypted) renderCardDecrypted(ctx);
+  if(reload) loadList();
+}
+
+async function saveEdit(ctx){
+  const saveBtn = ctx.el.querySelector('.card-save');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<span class="spinner"></span>저장 중…';
+
+  try{
+    /* 1. 공개 필드 수집 */
+    const publicPatch = {};
+    ctx.el.querySelectorAll('[data-edit-public]').forEach(inp => {
+      publicPatch[inp.dataset.editPublic] = inp.value.trim();
+    });
+
+    /* 2. 민감 필드 수집 */
+    const newSensitive = {
+      rrn: '',
+      hometax_id: '',
+      hometax_pw: '',
+      dependents_rrn: []
+    };
+    ctx.el.querySelectorAll('[data-edit-sensitive]').forEach(inp => {
+      const k = inp.dataset.editSensitive;
+      if(k.startsWith('dep_')){
+        const idx = parseInt(k.slice(4), 10);
+        newSensitive.dependents_rrn[idx] = inp.value.trim();
+      } else {
+        newSensitive[k] = inp.value.trim();
+      }
+    });
+
+    /* 3. 남은 파일들 (삭제 표시 안된 것) */
+    const remainingFiles = ctx.decrypted.files.filter((_, i) => {
+      const fc = ctx.el.querySelectorAll('.file-list .file-card')[i];
+      return !(fc && fc.dataset.deleted === '1');
+    });
+
+    /* 4. 재암호화 */
+    const aesKey = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, true, ['encrypt']);
+    const aesRaw = await crypto.subtle.exportKey('raw', aesKey);
+    const encKey = await crypto.subtle.encrypt({ name:'RSA-OAEP' }, state.pubKey, aesRaw);
+
+    const ivText = crypto.getRandomValues(new Uint8Array(12));
+    const textBytes = new TextEncoder().encode(JSON.stringify(newSensitive));
+    const encText = await crypto.subtle.encrypt({ name:'AES-GCM', iv:ivText }, aesKey, textBytes);
+
+    const encFiles = [];
+    for(const f of remainingFiles){
+      const buf = await f.blob.arrayBuffer();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, buf);
+      encFiles.push({
+        docKey: f.docKey, name: f.name, mime: f.mime, size: f.size,
+        iv: bytesToB64Local(iv), data: bytesToB64Local(new Uint8Array(ct))
+      });
+    }
+
+    const newEncrypted = {
+      aes_key: bytesToB64Local(new Uint8Array(encKey)),
+      iv_text: bytesToB64Local(ivText),
+      text:    bytesToB64Local(new Uint8Array(encText)),
+      files:   encFiles
+    };
+
+    /* 5. 서버 PATCH */
+    await api(`/api/item/${ctx.item.id}`, {
+      method:'PATCH',
+      body: JSON.stringify({ public_data: publicPatch, encrypted: newEncrypted })
+    });
+
+    /* 6. 로컬 상태 갱신 */
+    ctx.item.public_data = { ...(ctx.item.public_data||{}), ...publicPatch };
+    ctx.item.encrypted = newEncrypted;
+    ctx.decrypted = { sensitive: newSensitive, files: remainingFiles };
+    /* 목록도 즉시 업데이트 */
+    const li = state.items.find(it => it.id === ctx.item.id);
+    if(li){
+      if(publicPatch.targetName != null) li.target_name = publicPatch.targetName;
+      if(publicPatch.phone != null)      li.phone = publicPatch.phone;
+    }
+    renderList();
+
+    toast('✓ 변경사항 저장 완료');
+    exitEditMode(ctx, /*reload*/false);
+  }catch(err){
+    toast('저장 실패: ' + err.message, 5000);
+  }finally{
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 저장';
+  }
 }
 
 function applyCardMask(ctx){
@@ -1365,6 +1548,35 @@ function bizTypeLabel(b){
 function statusLabel(s){
   return ({pending:'🟡 대기', completed:'🟢 처리완료'})[s] || s || '-';
 }
+
+/* 상태 즉시 토글 — optimistic UI (네트워크 응답 안 기다림) */
+async function toggleItemStatus(id){
+  const li = state.items.find(it => it.id === id);
+  if(!li){ return; }
+  const oldStatus = li.status || 'pending';
+  const newStatus = oldStatus === 'completed' ? 'pending' : 'completed';
+
+  /* 1. 화면 즉시 갱신 */
+  li.status = newStatus;
+  const ctx = cards.get(id);
+  if(ctx && ctx.item) ctx.item.status = newStatus;
+  renderList();
+
+  /* 2. 백그라운드로 서버 반영 */
+  try{
+    await api(`/api/item/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: newStatus })
+    });
+    toast(`✓ ${statusLabel(newStatus)}로 변경`, 1500);
+  }catch(err){
+    /* 실패 시 롤백 */
+    li.status = oldStatus;
+    if(ctx && ctx.item) ctx.item.status = oldStatus;
+    renderList();
+    toast('상태 변경 실패: ' + err.message, 4000);
+  }
+}
 function formatDeps(arr){
   if(!Array.isArray(arr) || arr.length===0) return '(없음)';
   return arr.map(d=>`${d.rel||''} ${d.name||''}`).join(' · ');
@@ -1514,6 +1726,24 @@ window.addEventListener('beforeunload', () => {
   cleanupDecrypted();
   state.items = [];
   state.current = null;
+});
+
+/* 복사 버튼 (전역 위임) */
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.copy-btn');
+  if(!btn) return;
+  e.stopPropagation();
+  const text = btn.dataset.copy || '';
+  if(!text) return;
+  try{
+    await navigator.clipboard.writeText(text);
+    const orig = btn.textContent;
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent = orig; btn.classList.remove('copied'); }, 1200);
+  }catch(err){
+    toast('복사 실패 — 수동으로 선택해 복사하세요', 3000);
+  }
 });
 
 /* 우클릭/드래그 차단 (민감 영역) */
