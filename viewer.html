@@ -650,10 +650,13 @@ function bindCardEvents(ctx){
         body: JSON.stringify({ status: newStatus })
       });
       ctx.item.status = newStatus;
+      /* 로컬 상태 즉시 갱신 (KV는 LIST 일관성 30~60초 필요) */
+      const li = state.items.find(it => it.id === ctx.item.id);
+      if(li) li.status = newStatus;
+      renderList();
       msgEl.textContent = '✓ 변경됨';
       msgEl.style.color = '#2D5F3F';
       setTimeout(()=>{ msgEl.textContent = ''; }, 2000);
-      await loadList();   /* 목록 상태 뱃지 업데이트 */
     }catch(err){
       msgEl.textContent = '실패: ' + err.message;
       msgEl.style.color = '#D33';
@@ -669,11 +672,14 @@ function bindCardEvents(ctx){
     const name = (ctx.item.public_data && ctx.item.public_data.targetName) || '';
     if(!confirm(`⚠ 영구 삭제\n\n${name}\n\n이 데이터는 KV에서 즉시 삭제되며 복구할 수 없습니다.\n계속하시겠습니까?`)) return;
     try{
-      await api(`/api/item/${ctx.item.id}`, { method:'DELETE' });
+      const deletedId = ctx.item.id;
+      await api(`/api/item/${deletedId}`, { method:'DELETE' });
       toast('✓ 삭제 완료');
-      state.selected.delete(ctx.item.id);
-      collapseCard(ctx.item.id);
-      await loadList();
+      state.selected.delete(deletedId);
+      collapseCard(deletedId);
+      /* 로컬 즉시 제거 — KV LIST 반영 대기 안 함 */
+      state.items = state.items.filter(it => it.id !== deletedId);
+      renderList();
     }catch(err){
       toast('삭제 실패: ' + err.message, 4000);
     }
