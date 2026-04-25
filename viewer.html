@@ -97,6 +97,18 @@
   .spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:4px}
   @keyframes spin{to{transform:rotate(360deg)}}
 
+  /* 인라인 상세 카드 */
+  .details-toolbar{display:flex;align-items:center;gap:10px;margin:14px 0 10px;padding:10px 14px;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:10px;font-size:13px}
+  .details-toolbar .left{font-weight:700;color:#2D5F3F;margin-right:auto}
+  .details-area{display:flex;flex-direction:column;gap:14px}
+  .detail-card{background:#fff;border:1px solid #EAEAEA;border-radius:12px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,.04);scroll-margin-top:60px}
+  .detail-card .card-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #F2F2F2}
+  .detail-card .card-title{margin:0;font-size:16px;font-weight:800}
+  .detail-card .card-sub{margin:2px 0 0;font-size:11px;color:#888}
+  .detail-card .sec-h{margin:14px 0 8px;font-size:13px;font-weight:700;color:#2D5F3F}
+  .detail-card .card-foot{display:flex;justify-content:space-between;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid #EAEAEA}
+  .detail-card .close-x{position:relative;top:0;right:0}
+
   /* 다중 선택 / 큐 */
   .col-check{width:36px;text-align:center}
   .checkbox{cursor:pointer;width:16px;height:16px;accent-color:#2D5F3F}
@@ -182,46 +194,53 @@
       </table>
     </div>
     <p style="font-size:11px;color:#888;margin-top:14px">데이터는 30일 후 자동 삭제됩니다. 처리완료 항목은 즉시 영구 삭제됩니다.</p>
+
+    <!-- 인라인 상세 영역 (행 클릭 시 카드가 여기 쌓임) -->
+    <div class="details-toolbar" id="detailsToolbar" style="display:none">
+      <span class="left" id="detailsCount">0건 펼침</span>
+      <button class="btn ghost sm" id="btnDecryptAll">🔐 모두 복호화</button>
+      <button class="btn ghost sm" id="btnCollapseAll">⊟ 모두 닫기</button>
+    </div>
+    <div id="detailsArea" class="details-area"></div>
   </div>
 </section>
 
-<!-- ── 상세 모달 ── -->
-<div class="modal" id="detailModal">
-  <div class="modal-card">
-    <button class="close-x" data-close>×</button>
-    <div class="queue-nav" id="queueNav" style="display:none">
-      <button class="btn ghost sm" id="btnQueuePrev">← 이전</button>
-      <span class="pos" id="queuePos">1 / 1</span>
-      <button class="btn sm" id="btnQueueNext">다음 →</button>
-    </div>
-    <h2 id="detailTitle">접수 상세</h2>
-    <p style="color:#888;font-size:12px;margin-bottom:14px" id="detailSub"></p>
+<!-- ── 인라인 카드 템플릿 (script type=text/template) ── -->
+<template id="cardTemplate">
+  <article class="detail-card" data-card-id="">
+    <header class="card-head">
+      <div>
+        <h3 class="card-title"></h3>
+        <p class="card-sub"></p>
+      </div>
+      <button class="close-x card-close" title="닫기">×</button>
+    </header>
 
-    <h3>📋 일반 정보</h3>
-    <div id="publicData"></div>
+    <h4 class="sec-h">📋 일반 정보</h4>
+    <div class="public-data"></div>
 
-    <h3 style="margin-top:18px">🔐 민감정보</h3>
-    <div id="sensitiveLocked" class="lock-card">
+    <h4 class="sec-h">🔐 민감정보</h4>
+    <div class="sensitive-locked lock-card">
       <div class="ico">🔒</div>
-      <p style="font-size:13px;margin:6px 0 10px">서버는 이 정보의 평문을 알 수 없습니다. 개인키와 비밀번호로만 복호화됩니다.</p>
-      <button class="btn warn" id="btnDecrypt">개인키로 복호화</button>
+      <p style="font-size:13px;margin:6px 0 10px">서버는 평문을 알 수 없습니다. 개인키와 비밀번호로만 복호화됩니다.</p>
+      <button class="btn warn card-decrypt">개인키로 복호화</button>
     </div>
-    <div id="sensitiveData" style="display:none">
+    <div class="sensitive-data" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:12px;color:#888">⚠ 화면 외부 공유 금지</span>
-        <button class="btn ghost sm" id="btnMask">👁 보기</button>
+        <button class="btn ghost sm card-mask">👁 보기</button>
       </div>
-      <div id="sensitiveFields" class="sensitive"></div>
-      <h4 style="margin-top:14px;font-size:13px;color:#2D5F3F">📎 첨부 파일</h4>
-      <div id="fileList"></div>
+      <div class="sensitive-fields sensitive"></div>
+      <h4 class="sec-h" style="font-size:13px">📎 첨부 파일</h4>
+      <div class="file-list"></div>
     </div>
 
-    <div style="display:flex;justify-content:space-between;gap:8px;margin-top:20px;padding-top:14px;border-top:1px solid #EAEAEA">
-      <button class="btn ghost" data-close>닫기</button>
-      <button class="btn danger" id="btnComplete">✓ 처리완료 (즉시 삭제)</button>
-    </div>
-  </div>
-</div>
+    <footer class="card-foot">
+      <button class="btn ghost card-close-btn">닫기</button>
+      <button class="btn danger card-complete">✓ 처리완료 (즉시 삭제)</button>
+    </footer>
+  </article>
+</template>
 
 <!-- ── 설정 모달 ── -->
 <div class="modal" id="settingsModal">
@@ -400,6 +419,7 @@ function forceLogout(reason){
   $('#btnSettings').style.display = 'none';
   state.selected.clear();
   state.queue = []; state.queueIdx = 0;
+  collapseAllCards();
   $('#main').classList.remove('active');
   show('#login');
   $('#detailModal').classList.remove('active');
@@ -449,10 +469,12 @@ function renderList(){
     </tr>`;
   }).join('');
 
-  /* 행 클릭(체크박스 영역 제외) → 단건 상세 */
+  /* 행 클릭(체크박스 영역 제외) → 인라인 카드 펼침/접기 토글 */
   $$('.row').forEach(tr => tr.addEventListener('click', e => {
-    if(e.target.closest('.col-check')) return; /* 체크박스 클릭은 행 클릭 무시 */
-    openDetail(tr.dataset.id, /*queueMode*/ false);
+    if(e.target.closest('.col-check')) return;
+    const id = tr.dataset.id;
+    if(cards.has(id)) collapseCard(id);
+    else expandCard(id);
   }));
   /* 체크박스 토글 */
   $$('.row-check').forEach(cb => cb.addEventListener('change', e => {
@@ -484,51 +506,243 @@ function syncCheckAll(){
 /* ════════════════════════════════════════════════════
  * 상세 보기
  * ════════════════════════════════════════════════════ */
-async function openDetail(id, queueMode){
-  try{
-    const r = await api(`/api/item/${id}`);
-    state.current = r.item;
-    cleanupDecrypted();
-    renderDetail();
-    renderQueueNav(queueMode === true);
-    $('#detailModal').classList.add('active');
-    /* 큐 모드 + 개인키 이미 로드된 상태면 자동 복호화 */
-    if(queueMode && state.privKey) await decryptCurrent();
-  }catch(err){
-    toast('불러오기 실패: ' + err.message, 4000);
-  }
-}
+/* ════════════════════════════════════════════════════
+ * 인라인 카드 — 행 클릭 시 목록 아래에 카드 추가
+ * ════════════════════════════════════════════════════ */
+const cards = new Map(); // id → { item, decrypted, masked, el }
 
-function renderQueueNav(isQueue){
-  if(!isQueue || state.queue.length <= 1){
-    $('#queueNav').style.display = 'none';
+async function expandCard(id, scroll){
+  const exists = cards.get(id);
+  if(exists){
+    if(scroll !== false) exists.el.scrollIntoView({ behavior:'smooth', block:'center' });
     return;
   }
-  $('#queueNav').style.display = '';
-  $('#queuePos').textContent = `${state.queueIdx + 1} / ${state.queue.length}`;
-  $('#btnQueuePrev').disabled = state.queueIdx <= 0;
-  $('#btnQueueNext').disabled = state.queueIdx >= state.queue.length - 1;
+  let item;
+  try{
+    const r = await api(`/api/item/${id}`);
+    item = r.item;
+  }catch(err){
+    toast('불러오기 실패: ' + err.message, 4000);
+    return;
+  }
+
+  const tpl = $('#cardTemplate').content.cloneNode(true);
+  const el = tpl.querySelector('.detail-card');
+  el.dataset.cardId = id;
+  $('#detailsArea').appendChild(el);
+
+  const ctx = { item, decrypted:null, masked:true, el };
+  cards.set(id, ctx);
+
+  fillPublic(ctx);
+  bindCardEvents(ctx);
+  updateDetailsToolbar();
+
+  if(scroll !== false) el.scrollIntoView({ behavior:'smooth', block:'start' });
+
+  /* 개인키 이미 메모리에 있으면 자동 복호화 */
+  if(state.privKey) await decryptCardItem(ctx);
 }
 
-async function queueGoto(delta){
-  const newIdx = state.queueIdx + delta;
-  if(newIdx < 0 || newIdx >= state.queue.length) return;
-  state.queueIdx = newIdx;
-  await openDetail(state.queue[newIdx], true);
+function fillPublic(ctx){
+  const it = ctx.item;
+  const pd = it.public_data || {};
+  ctx.el.querySelector('.card-title').textContent = (pd.targetName || '-') + ' 접수';
+  ctx.el.querySelector('.card-sub').textContent = `ID: ${it.id} · 접수: ${fmtDate(it.submitted_at)} · 만료: ${fmtDate(it.expires_at)}`;
+
+  const fields = [
+    ['신고대상자', pd.targetName],
+    ['의뢰자', pd.requesterName || '(없음)'],
+    ['연락처', pd.phone],
+    ['업종구분', bizTypeLabel(pd.bizType)],
+    ['소득종류', pd.incomeTypes],
+    ['기타소득', pd.incomeEtc || '(없음)'],
+    ['부양가족', formatDeps(pd.dependents)],
+    ['진단결과', pd.quizResult || '(없음)'],
+    ['동의', `필수1=${pd.agree1?'✓':'✗'} · 필수2=${pd.agree2?'✓':'✗'} · 마케팅=${pd.agree3?'✓':'✗'}`],
+    ['제출시각', fmtDate(pd.submittedAt)]
+  ];
+  ctx.el.querySelector('.public-data').innerHTML = fields.map(([k,v])=>`
+    <div class="field-row"><div class="k">${k}</div><div class="v">${escapeHtml(v||'-')}</div></div>
+  `).join('');
 }
 
-$('#btnQueuePrev').addEventListener('click', () => queueGoto(-1));
-$('#btnQueueNext').addEventListener('click', () => queueGoto(1));
+function bindCardEvents(ctx){
+  const el = ctx.el;
+  el.querySelector('.card-close').addEventListener('click', () => collapseCard(ctx.item.id));
+  el.querySelector('.card-close-btn').addEventListener('click', () => collapseCard(ctx.item.id));
+  el.querySelector('.card-decrypt').addEventListener('click', async () => {
+    if(state.privKey){
+      await decryptCardItem(ctx);
+    } else {
+      pendingDecryptCardId = ctx.item.id;
+      $('#decryptErr').textContent = '';
+      $('#privFile').value = '';
+      $('#privPwd').value = '';
+      $('#decryptModal').classList.add('active');
+      setTimeout(()=>$('#privFile').focus(), 100);
+    }
+  });
+  el.querySelector('.card-mask').addEventListener('click', () => {
+    ctx.masked = !ctx.masked;
+    applyCardMask(ctx);
+  });
+  el.querySelector('.card-complete').addEventListener('click', async () => {
+    if(!confirm(`정말 삭제하시겠습니까?\n${(ctx.item.public_data && ctx.item.public_data.targetName) || ''}\n\n이 작업은 되돌릴 수 없습니다.`)) return;
+    try{
+      await api(`/api/item/${ctx.item.id}`, { method:'DELETE' });
+      toast('✓ 삭제 완료');
+      state.selected.delete(ctx.item.id);
+      collapseCard(ctx.item.id);
+      await loadList();
+    }catch(err){
+      toast('삭제 실패: ' + err.message, 4000);
+    }
+  });
+}
 
-/* 일괄 보기 — 큐 모드 진입 */
-$('#btnBulkOpen').addEventListener('click', () => {
+function collapseCard(id){
+  const ctx = cards.get(id);
+  if(!ctx) return;
+  if(ctx.decrypted){
+    ctx.decrypted.files.forEach(f => { try{ URL.revokeObjectURL(f.url); }catch(e){} });
+    if(ctx.decrypted.sensitive){
+      for(const k in ctx.decrypted.sensitive) ctx.decrypted.sensitive[k] = null;
+    }
+  }
+  ctx.el.remove();
+  cards.delete(id);
+  updateDetailsToolbar();
+}
+
+function collapseAllCards(){
+  Array.from(cards.keys()).forEach(id => collapseCard(id));
+}
+
+function updateDetailsToolbar(){
+  const n = cards.size;
+  $('#detailsToolbar').style.display = n > 0 ? 'flex' : 'none';
+  $('#detailsCount').textContent = `${n}건 펼침`;
+}
+
+async function decryptCardItem(ctx){
+  if(!state.privKey || !ctx.item || !ctx.item.encrypted) return;
+  const enc = ctx.item.encrypted;
+  try{
+    const aesRaw = await crypto.subtle.decrypt(
+      { name:'RSA-OAEP' }, state.privKey, b64ToBytes(enc.aes_key)
+    );
+    const aesKey = await crypto.subtle.importKey(
+      'raw', aesRaw, { name:'AES-GCM', length:256 }, false, ['decrypt']
+    );
+    const textBuf = await crypto.subtle.decrypt(
+      { name:'AES-GCM', iv:b64ToBytes(enc.iv_text) }, aesKey, b64ToBytes(enc.text)
+    );
+    const sensitive = JSON.parse(new TextDecoder().decode(textBuf));
+
+    const files = [];
+    for(const f of (enc.files || [])){
+      const buf = await crypto.subtle.decrypt(
+        { name:'AES-GCM', iv:b64ToBytes(f.iv) }, aesKey, b64ToBytes(f.data)
+      );
+      const blob = new Blob([buf], { type: f.mime || 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      files.push({ docKey: f.docKey, name: f.name, mime: f.mime, size: f.size, blob, url });
+    }
+    ctx.decrypted = { sensitive, files };
+    renderCardDecrypted(ctx);
+  }catch(err){
+    toast('복호화 실패: ' + err.message, 4000);
+  }
+}
+
+function renderCardDecrypted(ctx){
+  const s = ctx.decrypted.sensitive || {};
+  const files = ctx.decrypted.files || [];
+  const fields = [
+    ['주민번호', s.rrn || '-'],
+    ['홈택스 ID', s.hometax_id || '(없음)'],
+    ['홈택스 PW', s.hometax_pw || '(없음)']
+  ];
+  const depPub = (ctx.item.public_data && ctx.item.public_data.dependents) || [];
+  if(Array.isArray(s.dependents_rrn)){
+    s.dependents_rrn.forEach((rrn, i) => {
+      const p = depPub[i] || {};
+      fields.push([`부양가족 ${i+1} (${p.rel||''} ${p.name||''})`, rrn || '-']);
+    });
+  }
+  ctx.el.querySelector('.sensitive-fields').innerHTML = fields.map(([k,v])=>`
+    <div class="field-row sensitive">
+      <div class="k">${escapeHtml(k)}</div>
+      <div class="v" data-raw="${escapeHtml(v)}">${maskValue(v)}</div>
+    </div>
+  `).join('');
+
+  ctx.el.querySelector('.file-list').innerHTML = files.length === 0
+    ? '<p style="color:#888;font-size:12px">첨부된 파일 없음</p>'
+    : files.map(f => {
+        const isImg = (f.mime||'').startsWith('image/');
+        return `<div class="file-card">
+          ${isImg ? `<img src="${f.url}" alt="">` : '<div style="width:60px;height:60px;background:#EAEAEA;border-radius:6px;display:flex;align-items:center;justify-content:center">📄</div>'}
+          <div class="info">
+            <strong>${escapeHtml(docKeyLabel(f.docKey))}</strong>
+            <small>${escapeHtml(f.name)} · ${(f.size/1024).toFixed(0)}KB · ${escapeHtml(f.mime||'?')}</small>
+          </div>
+          <a href="${f.url}" download="${escapeHtml(f.name)}" class="btn sm ghost">⬇ 다운로드</a>
+          ${isImg ? `<a href="${f.url}" target="_blank" class="btn sm ghost">🔍 새 창</a>` : ''}
+        </div>`;
+      }).join('');
+
+  ctx.el.querySelector('.sensitive-locked').style.display = 'none';
+  ctx.el.querySelector('.sensitive-data').style.display = '';
+  ctx.masked = true;
+  applyCardMask(ctx);
+}
+
+function applyCardMask(ctx){
+  const fields = ctx.el.querySelectorAll('.sensitive-fields .v');
+  const btn = ctx.el.querySelector('.card-mask');
+  if(ctx.masked){
+    fields.forEach(el => { el.textContent = maskValue(el.dataset.raw); el.parentElement.classList.remove('unmasked'); });
+    btn.textContent = '👁 보기';
+  } else {
+    fields.forEach(el => { el.textContent = el.dataset.raw; el.parentElement.classList.add('unmasked'); });
+    btn.textContent = '🙈 가리기';
+  }
+}
+
+/* 키 입력 모달이 어떤 카드에서 호출됐는지 추적 */
+let pendingDecryptCardId = null;
+
+/* 일괄 보기 → 선택된 모든 항목을 카드로 펼침 */
+$('#btnBulkOpen').addEventListener('click', async () => {
   if(state.selected.size === 0) return;
-  /* 목록 표시 순서대로 큐 구성 */
-  const set = state.selected;
-  state.queue = state.items.filter(it => set.has(it.id)).map(it => it.id);
-  state.queueIdx = 0;
-  openDetail(state.queue[0], true);
+  const ids = state.items.filter(it => state.selected.has(it.id)).map(it => it.id);
+  for(const id of ids) await expandCard(id, false);
+  if(ids[0]){
+    const first = cards.get(ids[0]);
+    if(first) first.el.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
 });
+
+$('#btnDecryptAll').addEventListener('click', () => {
+  if(!state.privKey){
+    /* 첫 카드를 트리거로 키 입력 모달 표시 */
+    const firstId = Array.from(cards.keys())[0];
+    if(firstId){
+      pendingDecryptCardId = firstId;
+      $('#decryptErr').textContent = '';
+      $('#privFile').value = '';
+      $('#privPwd').value = '';
+      $('#decryptModal').classList.add('active');
+    }
+    return;
+  }
+  /* 펼쳐진 모든 카드 복호화 */
+  cards.forEach(ctx => { if(!ctx.decrypted) decryptCardItem(ctx); });
+});
+
+$('#btnCollapseAll').addEventListener('click', collapseAllCards);
 
 $('#btnBulkClear').addEventListener('click', () => {
   state.selected.clear();
@@ -701,35 +915,6 @@ function bytesToB64Local(bytes){
   return btoa(s);
 }
 
-function renderDetail(){
-  const it = state.current;
-  if(!it) return;
-  const pd = it.public_data || {};
-
-  $('#detailTitle').textContent = `${pd.targetName || '-'} 접수 상세`;
-  $('#detailSub').textContent = `ID: ${it.id} · 접수: ${fmtDate(it.submitted_at)} · 만료: ${fmtDate(it.expires_at)}`;
-
-  const fields = [
-    ['신고대상자', pd.targetName],
-    ['의뢰자', pd.requesterName || '(없음)'],
-    ['연락처', pd.phone],
-    ['업종구분', bizTypeLabel(pd.bizType)],
-    ['소득종류', pd.incomeTypes],
-    ['기타소득', pd.incomeEtc || '(없음)'],
-    ['부양가족', formatDeps(pd.dependents)],
-    ['진단결과', pd.quizResult || '(없음)'],
-    ['동의', `필수1=${pd.agree1?'✓':'✗'} · 필수2=${pd.agree2?'✓':'✗'} · 마케팅=${pd.agree3?'✓':'✗'}`],
-    ['제출시각', fmtDate(pd.submittedAt)]
-  ];
-  $('#publicData').innerHTML = fields.map(([k,v])=>`
-    <div class="field-row"><div class="k">${k}</div><div class="v">${escapeHtml(v||'-')}</div></div>
-  `).join('');
-
-  /* 민감정보 영역 초기화 */
-  show('#sensitiveLocked');
-  hide('#sensitiveData');
-}
-
 function bizTypeLabel(b){
   return ({self:'일반',free:'프리랜서',rent:'부동산임대'})[b] || b || '-';
 }
@@ -741,18 +926,7 @@ function formatDeps(arr){
 /* ════════════════════════════════════════════════════
  * 개인키 잠금 해제
  * ════════════════════════════════════════════════════ */
-$('#btnDecrypt').addEventListener('click', () => {
-  if(state.privKey){
-    /* 이미 키 있으면 바로 복호화 */
-    decryptCurrent();
-  } else {
-    $('#decryptErr').textContent = '';
-    $('#privFile').value = '';
-    $('#privPwd').value = '';
-    $('#decryptModal').classList.add('active');
-    setTimeout(()=>$('#privFile').focus(), 100);
-  }
-});
+/* (구) 모달용 btnDecrypt — 이제 카드별 .card-decrypt 가 대신함 (제거) */
 
 $('#btnUnlock').addEventListener('click', async () => {
   const file = $('#privFile').files[0];
@@ -805,7 +979,17 @@ $('#btnUnlock').addEventListener('click', async () => {
 
     $('#decryptModal').classList.remove('active');
     toast('🔓 개인키 메모리에 로드됨');
-    if(state.current) await decryptCurrent();
+
+    /* 모든 펼쳐진 카드 자동 복호화 (트리거된 카드 우선) */
+    if(pendingDecryptCardId){
+      const ctx = cards.get(pendingDecryptCardId);
+      if(ctx) await decryptCardItem(ctx);
+      pendingDecryptCardId = null;
+    }
+    /* 나머지 카드도 복호화 */
+    for(const [id, ctx] of cards) {
+      if(!ctx.decrypted) await decryptCardItem(ctx);
+    }
   }catch(err){
     $('#decryptErr').textContent = err.message;
   }finally{
@@ -813,101 +997,6 @@ $('#btnUnlock').addEventListener('click', async () => {
     $('#btnUnlock').textContent = '🔓 잠금 해제';
   }
 });
-
-/* ════════════════════════════════════════════════════
- * 현재 항목 민감정보 복호화
- * ════════════════════════════════════════════════════ */
-async function decryptCurrent(){
-  if(!state.privKey || !state.current) return;
-  const enc = state.current.encrypted;
-  if(!enc) { toast('암호화 영역이 없습니다', 3000); return; }
-
-  try{
-    /* 1. AES 마스터키 RSA 복호화 */
-    const aesRaw = await crypto.subtle.decrypt(
-      { name:'RSA-OAEP' },
-      state.privKey,
-      b64ToBytes(enc.aes_key)
-    );
-    const aesKey = await crypto.subtle.importKey(
-      'raw', aesRaw,
-      { name:'AES-GCM', length:256 },
-      false, ['decrypt']
-    );
-
-    /* 2. 텍스트 복호화 */
-    const textBuf = await crypto.subtle.decrypt(
-      { name:'AES-GCM', iv: b64ToBytes(enc.iv_text) },
-      aesKey,
-      b64ToBytes(enc.text)
-    );
-    const sensitive = JSON.parse(new TextDecoder().decode(textBuf));
-
-    /* 3. 파일들 복호화 */
-    const files = [];
-    for(const f of (enc.files || [])){
-      const buf = await crypto.subtle.decrypt(
-        { name:'AES-GCM', iv: b64ToBytes(f.iv) },
-        aesKey,
-        b64ToBytes(f.data)
-      );
-      const blob = new Blob([buf], { type: f.mime || 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      files.push({ docKey: f.docKey, name: f.name, mime: f.mime, size: f.size, blob, url });
-    }
-
-    state.decrypted = { sensitive, files };
-    renderDecrypted();
-  }catch(err){
-    toast('복호화 실패: ' + err.message, 4000);
-  }
-}
-
-function renderDecrypted(){
-  if(!state.decrypted) return;
-  const s = state.decrypted.sensitive || {};
-  const files = state.decrypted.files || [];
-
-  const fields = [
-    ['주민번호', s.rrn || '-'],
-    ['홈택스 ID', s.hometax_id || '(없음)'],
-    ['홈택스 PW', s.hometax_pw || '(없음)']
-  ];
-  /* 부양가족 RRN 매칭 */
-  const depPub = (state.current.public_data && state.current.public_data.dependents) || [];
-  if(Array.isArray(s.dependents_rrn)){
-    s.dependents_rrn.forEach((rrn, i) => {
-      const p = depPub[i] || {};
-      fields.push([`부양가족 ${i+1} (${p.rel||''} ${p.name||''})`, rrn || '-']);
-    });
-  }
-  $('#sensitiveFields').innerHTML = fields.map(([k,v])=>`
-    <div class="field-row sensitive">
-      <div class="k">${escapeHtml(k)}</div>
-      <div class="v" data-raw="${escapeHtml(v)}">${maskValue(v)}</div>
-    </div>
-  `).join('');
-
-  $('#fileList').innerHTML = files.length === 0
-    ? '<p style="color:#888;font-size:12px">첨부된 파일 없음</p>'
-    : files.map((f, i) => {
-        const isImg = (f.mime||'').startsWith('image/');
-        return `<div class="file-card">
-          ${isImg ? `<img src="${f.url}" alt="">` : '<div style="width:60px;height:60px;background:#EAEAEA;border-radius:6px;display:flex;align-items:center;justify-content:center">📄</div>'}
-          <div class="info">
-            <strong>${escapeHtml(docKeyLabel(f.docKey))}</strong>
-            <small>${escapeHtml(f.name)} · ${(f.size/1024).toFixed(0)}KB · ${escapeHtml(f.mime||'?')}</small>
-          </div>
-          <a href="${f.url}" download="${escapeHtml(f.name)}" class="btn sm ghost">⬇ 다운로드</a>
-          ${isImg ? `<a href="${f.url}" target="_blank" class="btn sm ghost">🔍 새 창</a>` : ''}
-        </div>`;
-      }).join('');
-
-  hide('#sensitiveLocked');
-  show('#sensitiveData');
-  state.masked = true;
-  applyMask();
-}
 
 function docKeyLabel(k){
   const m = {idcard:'신분증', util:'공과금', ins:'보험납입', tel:'통신비', yrend:'연말정산 간소화', car:'자동차 관련', loan:'대출 내역', rent:'임대차계약서', etc:'기타 경비', exp:'사업경비', tax:'지방세 과세증명', jongbu:'종부세', contract:'임대차계약', bank:'환급계좌'};
@@ -923,92 +1012,16 @@ function maskValue(v){
   return v.slice(0,3) + '•'.repeat(Math.max(3, v.length-3));
 }
 
-function applyMask(){
-  const btn = $('#btnMask');
-  const fields = $$('.sensitive .v');
-  if(state.masked){
-    fields.forEach(el => { el.textContent = maskValue(el.dataset.raw); });
-    fields.forEach(el => el.parentElement.classList.remove('unmasked'));
-    btn.textContent = '👁 보기';
-  } else {
-    fields.forEach(el => { el.textContent = el.dataset.raw; });
-    fields.forEach(el => el.parentElement.classList.add('unmasked'));
-    btn.textContent = '🙈 가리기';
-  }
-}
-
-$('#btnMask').addEventListener('click', () => {
-  state.masked = !state.masked;
-  applyMask();
-});
-
 /* ════════════════════════════════════════════════════
- * 처리 완료 (즉시 삭제)
+ * 모달(개인키 입력) 닫기 / ESC
  * ════════════════════════════════════════════════════ */
-$('#btnComplete').addEventListener('click', async () => {
-  if(!state.current) return;
-  if(!confirm(`정말 삭제하시겠습니까?\n${state.current.public_data && state.current.public_data.targetName}\n\n이 작업은 되돌릴 수 없습니다.`)) return;
-  try{
-    const deletedId = state.current.id;
-    await api(`/api/item/${state.current.id}`, { method:'DELETE' });
-    toast('✓ 삭제 완료');
-
-    /* 큐 모드: 큐에서 제거 후 다음 항목으로 자동 이동 */
-    const inQueue = state.queue.length > 1;
-    if(inQueue){
-      state.queue.splice(state.queueIdx, 1);
-      state.selected.delete(deletedId);
-      if(state.queue.length === 0){
-        closeDetail();
-      } else {
-        if(state.queueIdx >= state.queue.length) state.queueIdx = state.queue.length - 1;
-        await openDetail(state.queue[state.queueIdx], true);
-      }
-    } else {
-      state.selected.delete(deletedId);
-      closeDetail();
-    }
-    await loadList();
-  }catch(err){
-    toast('삭제 실패: ' + err.message, 4000);
-  }
-});
-
-/* ════════════════════════════════════════════════════
- * 모달 닫기 / 정리
- * ════════════════════════════════════════════════════ */
-function closeDetail(){
-  $('#detailModal').classList.remove('active');
-  cleanupDecrypted();
-  state.current = null;
-  /* 큐 모드 종료 */
-  state.queue = [];
-  state.queueIdx = 0;
-  $('#queueNav').style.display = 'none';
-}
-function cleanupDecrypted(){
-  if(state.decrypted){
-    state.decrypted.files.forEach(f => { try{ URL.revokeObjectURL(f.url); }catch(e){} });
-    /* 민감 객체 폐기 */
-    if(state.decrypted.sensitive){
-      for(const k in state.decrypted.sensitive) state.decrypted.sensitive[k] = null;
-    }
-    state.decrypted = null;
-  }
-  hide('#sensitiveData');
-  show('#sensitiveLocked');
-}
-
 document.addEventListener('click', e => {
-  if(e.target.matches('[data-close]')) closeDetail();
   if(e.target.matches('[data-close-d]')) $('#decryptModal').classList.remove('active');
 });
 
-/* ESC로 모달 닫기 */
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape'){
     if($('#decryptModal').classList.contains('active')) $('#decryptModal').classList.remove('active');
-    else if($('#detailModal').classList.contains('active')) closeDetail();
   }
 });
 
