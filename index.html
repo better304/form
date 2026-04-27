@@ -181,6 +181,13 @@
   .doc-section{margin:14px 0 6px;padding:6px 0;border-bottom:1px solid #E5E8DD}
   .doc-section:first-of-type{margin-top:6px}
   .doc-section h4{margin:0;font-size:13px;color:#2D5F3F;font-weight:700}
+  .doc-optional{margin-top:14px;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:10px;overflow:hidden}
+  .doc-optional summary{cursor:pointer;list-style:none;padding:11px 14px;font-weight:700;font-size:13px;color:#2D5F3F;background:#F0F7EA}
+  .doc-optional summary::-webkit-details-marker{display:none}
+  .doc-optional summary::after{content:"▾";float:right;color:#2D5F3F}
+  .doc-optional[open] summary::after{content:"▴"}
+  .doc-optional-body{padding:12px}
+  .doc-optional-body .doc-item:last-child{margin-bottom:0}
   .doc-item{background:#fff;border:1px solid #EAEAEA;border-radius:10px;padding:12px;margin-bottom:8px}
   .doc-item.doc-text .dname{margin-bottom:6px}
   .doc-item.doc-text .doc-text-input{width:100%;padding:9px 12px;border:1.5px solid #FFB6B6;border-radius:8px;font-size:13px;font-family:inherit;color:#A02020;background:#FFFAFA}
@@ -213,6 +220,7 @@
   .btn-kakao{background:#FEE500;color:#3A1D1D;box-shadow:var(--shadow)}
   .btn-ghost{background:#fff;border:1.5px solid var(--ink-300);color:var(--ink-700)}
   .btn-full{width:100%}
+  .btn.sm{padding:7px 13px;font-size:12px}
   .btn:disabled{opacity:.5;cursor:not-allowed}
   .nav-btns{display:flex;gap:8px;margin-top:14px}
   .nav-btns .btn{flex:1}
@@ -323,12 +331,8 @@
       <div class="trust">
         <span class="badge">등록세무사 제 420-23-01707</span>
         <span class="badge">금정세무서 관할</span>
+        <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="badge naver-badge">📍 더나은 세무회계 위치안내</a>
       </div>
-      <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="location-cta">
-        <span class="loc-icon">📍</span>
-        <span class="loc-text"><strong>더나은 세무회계 위치안내</strong><span class="loc-sub">부산 금정구 장전동 동행빌딩 4F · 클릭하여 확인</span></span>
-        <span class="loc-arrow">›</span>
-      </a>
     </div>
   </div>
 
@@ -389,9 +393,9 @@
         <div class="field">
           <label>업종구분 <span class="req">*</span></label>
           <div class="biz-chips" id="bizType">
-            <button type="button" class="chip" data-v="self">🏪 일반<br><span style="font-size:11px;font-weight:500">(사업자)</span></button>
-            <button type="button" class="chip" data-v="free">💻 프리랜서<br><span style="font-size:11px;font-weight:500">(3.3%)</span></button>
-            <button type="button" class="chip" data-v="rent">🏢 부동산<br><span style="font-size:11px;font-weight:500">임대</span></button>
+            <button type="button" class="chip" data-v="self">🏪 일반</button>
+            <button type="button" class="chip" data-v="free">💻 프리랜서</button>
+            <button type="button" class="chip" data-v="rent">🏢 부동산 임대</button>
             <button type="button" class="chip" data-v="etc">📋 그외</button>
           </div>
           <input type="hidden" name="bizType" />
@@ -405,7 +409,7 @@
               <div class="b-item"><strong>📋 그외</strong> — 근로소득·이자배당·연금·기타 등만 있는 경우 (즉, 사업소득이 없는 경우)</div>
               <p class="info-more">
                 📖 <strong>업종별 상세 기준·예시</strong>가 궁금하시면
-                <a href="#" data-blog-link="biztype" target="_blank" rel="noopener">블로그 글 보기 →</a>
+                <a href="https://blog.naver.com/better304/224267385628" target="_blank" rel="noopener">블로그 글 보기 →</a>
               </p>
             </div>
           </details>
@@ -479,11 +483,9 @@
               <li>연 100만원 이하</li>
               <li>월급만 받으시는 경우 → 연 500만원 이하</li>
             </ul>
-            <p style="margin:10px 0 4px"><strong>✨ 예외</strong></p>
-            <p style="margin:0;color:var(--ink-700)">배우자(남편·아내)와 장애가 있는 가족은 나이는 따지지 않아요. 소득만 위 조건에 맞으면 돼요.</p>
             <p class="info-more" style="margin-top:10px">
-              📖 <strong>부양가족 공제 더 자세히</strong> (장애인 공제·경로우대 등)
-              <a href="#" data-blog-link="dependents" target="_blank" rel="noopener">블로그 글 보기 →</a>
+              📖 <strong>부양가족 공제 더 자세히</strong>
+              <a href="https://blog.naver.com/better304/224267379625" target="_blank" rel="noopener">블로그 글 보기 →</a>
             </p>
           </div>
         </details>
@@ -550,7 +552,7 @@
     </div>
 
     <p style="text-align:center;font-size:12px;color:var(--ink-500);margin:14px 0 26px">
-      문의: <a href="#" data-talk="form-foot">네이버 톡톡문의</a> · 부산광역시 금정구 장전온천천로 83, 4층
+      문의: <a href="https://talk.naver.com/W40R67" target="_blank" rel="noopener">네이버 톡톡문의</a> · 부산광역시 금정구 장전온천천로 83, 4층
     </p>
   </div>
 </section>
@@ -564,43 +566,17 @@
       <p>접수번호: <strong id="recNo">-</strong></p>
     </div>
 
-    <!-- 후킹: 기장 vs 신고대리 안내 (블로그 유도) -->
+    <!-- 기장 vs 신고대리 안내 (심플) -->
     <div class="section">
-      <div class="section-head">
-        <span class="badge">📊 안내</span>
-        <h2>기장 vs 신고대리, 어떤 게 유리할까요?</h2>
-      </div>
-      <p class="section-desc">자세한 비교와 사례별 추천은 아래 블로그 글에서 확인하실 수 있어요.</p>
-
-      <div class="blog-cta">
-        <div class="bc-icon">📖</div>
-        <div class="bc-text">
-          <strong>기장 vs 신고대리 완벽 비교</strong>
-          <span>매월 관리·절세 효과·세무조사 대응까지 한눈에</span>
-        </div>
-        <a href="#" data-blog-link="taxComparison" class="btn btn-primary">자세히 보기 →</a>
+      <div class="section-head" style="justify-content:space-between;align-items:center">
+        <h2 style="margin:0">기장 vs 신고대리, 어떤 게 유리할까요?</h2>
+        <a href="https://blog.naver.com/better304/223411654023" target="_blank" rel="noopener" class="btn btn-ghost sm">자세히 보기 →</a>
       </div>
     </div>
 
-    <!-- 마지막 CTA -->
-    <div class="hook-banner" style="background:#fff;color:var(--ink-900);border:1px solid var(--green-200)">
-      <strong style="color:var(--green-700)">📩 궁금한 점이 있으신가요?</strong>
-      <span style="color:var(--ink-700);font-size:13px">네이버 톡톡으로 편하게 문의주세요. 대표세무사가 직접 답변드립니다.</span>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <a href="#" class="btn btn-naver-talk" data-talk="bottom" style="flex:1;min-width:140px">💬 네이버 톡톡 문의</a>
-        <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="btn naver-cta" style="flex:1;min-width:140px">📍 더나은 세무회계 위치안내</a>
-      </div>
-    </div>
-
-    <!-- 후기 부탁 카드 -->
-    <div class="review-card">
-      <div class="rc-icon">⭐</div>
-      <div class="rc-text">
-        <strong>접수가 만족스러우셨다면</strong>
-        <span>네이버 플레이스에 짧은 후기 한 줄 부탁드려요.<br>다른 의뢰자분들께 큰 도움이 됩니다 🙇</span>
-      </div>
-      <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="btn naver-cta">⭐ 후기 남기러 가기 →</a>
-    </div>
+    <!-- 마지막 CTA — 톡톡 / 위치 별도 줄 -->
+    <a href="https://talk.naver.com/W40R67" target="_blank" rel="noopener" class="btn btn-naver-talk btn-full" style="margin-bottom:10px">💬 네이버 톡톡 문의</a>
+    <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="btn btn-ghost btn-full" style="border-color:#03C75A;color:#03C75A">📍 더나은 세무회계 위치안내</a>
   </div>
 </section>
 
@@ -1036,10 +1012,11 @@ function renderDocList(){
   out.push('<div class="doc-section"><h4>📌 필수 서류</h4></div>');
   reqs.forEach(d => out.push(renderDocEntry(d, true)));
 
-  /* ── 기타 서류 (업종별, 모두 선택) ── */
+  /* ── 기타 서류 (업종별, 모두 선택, 기본 접힘) ── */
   if(opts.length > 0){
-    out.push('<div class="doc-section"><h4>📋 기타 서류 <span style="font-weight:500;color:#888;font-size:11px">(선택)</span></h4></div>');
+    out.push('<details class="doc-optional"><summary>📋 기타 서류 <span style="font-weight:500;color:#888;font-size:11px">(선택 · 클릭하여 펼치기)</span></summary><div class="doc-optional-body">');
     opts.forEach(d => out.push(renderDocEntry(d, false)));
+    out.push('</div></details>');
   } else if(biz === 'etc'){
     out.push('<p style="color:#888;font-size:12px;margin:10px 0;text-align:center">필수서류 외 추가 항목이 없습니다.</p>');
   }
@@ -1389,6 +1366,8 @@ function showQuizResult(){
 document.addEventListener('click', e=>{
   const a = e.target.closest('[data-talk]');
   if(!a) return;
+  /* href가 있으면 브라우저가 자체 처리하도록 두고 분석/로깅만 */
+  if(a.getAttribute('href') && a.getAttribute('href') !== '#') return;
   e.preventDefault();
   const payload = {from:a.dataset.kakao, quizResult: quiz.result, quizAnswers: quiz.answers};
   if(CONFIG.DEMO_MODE){ console.log('[CTA click]', payload); }
@@ -1417,6 +1396,9 @@ document.addEventListener('click', e=>{
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-blog-link]');
   if(!a) return;
+  /* href가 정상이면 자체 처리 */
+  const href = a.getAttribute('href');
+  if(href && href !== '#') return;
   e.preventDefault();
   const slug = a.dataset.blogLink || '';
   const url = (CONFIG.BLOG_URLS && CONFIG.BLOG_URLS[slug]) || '';
