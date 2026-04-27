@@ -56,8 +56,37 @@
   .badge{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--green-100);color:var(--green-700);font-size:11px;font-weight:600}
   .badge.naver-badge{background:#03C75A;color:#fff;text-decoration:none;transition:all .12s}
   .badge.naver-badge:hover{background:#02A549;transform:translateY(-1px)}
+  .location-cta{display:flex;align-items:center;gap:12px;margin-top:14px;padding:14px 16px;background:linear-gradient(135deg,#03C75A,#02A549);color:#fff;border-radius:14px;text-decoration:none;box-shadow:0 4px 14px rgba(3,199,90,.25);transition:all .15s}
+  .location-cta:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(3,199,90,.4);color:#fff}
+  .location-cta .loc-icon{font-size:24px;flex-shrink:0}
+  .location-cta .loc-text{flex:1;display:flex;flex-direction:column;line-height:1.3}
+  .location-cta .loc-text strong{font-size:15px;font-weight:800}
+  .location-cta .loc-text .loc-sub{font-size:11px;opacity:.92;margin-top:2px}
+  .location-cta .loc-arrow{font-size:22px;font-weight:700;flex-shrink:0;opacity:.85}
   .btn.naver-cta{background:#03C75A;color:#fff;text-decoration:none}
   .btn.naver-cta:hover{background:#02A549}
+  .btn.btn-naver-talk{background:#03C75A;color:#fff;text-decoration:none}
+  .btn.btn-naver-talk:hover{background:#02A549}
+  /* 블로그 안내 카드 */
+  .blog-cta{background:linear-gradient(135deg,#F0F7EA,#E6F4DB);border:1px solid #C7E5AE;border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .blog-cta .bc-icon{font-size:36px;line-height:1}
+  .blog-cta .bc-text{flex:1;min-width:200px}
+  .blog-cta .bc-text strong{display:block;font-size:15px;color:#1A1A1A;margin-bottom:4px}
+  .blog-cta .bc-text span{font-size:12.5px;color:#555}
+  .blog-cta .btn{flex-shrink:0}
+
+  /* Floating 네이버 톡톡 (모든 페이지 우하단 고정) */
+  .float-talk{position:fixed;right:14px;bottom:14px;z-index:80;display:flex;align-items:center;gap:8px;padding:13px 18px;background:#03C75A;color:#fff;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 6px 18px rgba(3,199,90,.4);transition:all .15s}
+  .float-talk:hover{background:#02A549;transform:translateY(-2px);box-shadow:0 10px 24px rgba(3,199,90,.5);color:#fff}
+  .float-talk .ft-icon{font-size:18px}
+  .float-tip{position:fixed;right:14px;bottom:74px;z-index:79;background:#1A1A1A;color:#fff;padding:9px 14px;border-radius:10px;font-size:12.5px;max-width:240px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+  .float-tip::after{content:"";position:absolute;right:24px;bottom:-7px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #1A1A1A}
+  .float-tip.show{opacity:1;transform:translateY(0)}
+  @media (max-width:480px){
+    .float-talk{padding:11px 14px;font-size:13px;right:10px;bottom:80px}
+    .float-tip{right:10px;bottom:140px;max-width:200px}
+  }
+
   .review-card{background:linear-gradient(135deg,#FFFAEB,#FFF3CC);border:1px solid #FFD966;border-radius:12px;padding:14px;margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .review-card .rc-icon{font-size:34px;line-height:1}
   .review-card .rc-text{flex:1;min-width:180px;font-size:13px;color:#7A5500}
@@ -106,11 +135,17 @@
   .biz-chips{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
   @media(min-width:520px){.biz-chips{grid-template-columns:repeat(4,1fr)}}
   .biz-chips .chip{padding:12px 8px;text-align:center;font-weight:600}
-  .biz-info{margin-top:10px;padding:12px;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:10px;font-size:12.5px;color:#444}
-  .biz-info h5{margin:0 0 8px;font-size:12px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+  .biz-info{margin-top:10px;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:10px;font-size:12.5px;color:#444;overflow:hidden}
+  .biz-info summary{cursor:pointer;list-style:none;padding:11px 14px;font-weight:700;font-size:13px;color:#2D5F3F;background:#F0F7EA}
+  .biz-info summary::-webkit-details-marker{display:none}
+  .biz-info summary::after{content:"▾";float:right;color:#2D5F3F}
+  .biz-info[open] summary::after{content:"▴"}
+  .biz-info-body{padding:12px 14px}
   .biz-info .b-item{margin-bottom:8px;line-height:1.55}
-  .biz-info .b-item:last-child{margin-bottom:0}
+  .biz-info .b-item:last-child{margin-bottom:8px}
   .biz-info .b-item strong{color:#2D5F3F;font-weight:700}
+  .info-more{margin:10px 0 0;padding:8px 10px;background:#fff;border:1px dashed #C7E5AE;border-radius:6px;font-size:12px;color:#666}
+  .info-more a{color:#2D5F3F;font-weight:700;margin-left:4px;text-decoration:underline}
   .user-type-card{display:block;width:100%;padding:18px 16px;margin-bottom:10px;background:#fff;border:2px solid #E5E8DD;border-radius:14px;text-align:left;cursor:pointer;font:inherit;color:inherit;transition:all .12s}
   .user-type-card:hover{border-color:#2D5F3F;background:#F0F7EA}
   .user-type-card.selected{border-color:#2D5F3F;background:#F0F7EA}
@@ -288,8 +323,12 @@
       <div class="trust">
         <span class="badge">등록세무사 제 420-23-01707</span>
         <span class="badge">금정세무서 관할</span>
-        <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="badge naver-badge">📍 네이버 플레이스 후기</a>
       </div>
+      <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="location-cta">
+        <span class="loc-icon">📍</span>
+        <span class="loc-text"><strong>더나은 세무회계 위치안내</strong><span class="loc-sub">부산 금정구 장전동 동행빌딩 4F · 클릭하여 확인</span></span>
+        <span class="loc-arrow">›</span>
+      </a>
     </div>
   </div>
 
@@ -357,13 +396,19 @@
           </div>
           <input type="hidden" name="bizType" />
 
-          <div class="biz-info">
-            <h5>❓ 어떤 걸 골라야 할까요?</h5>
-            <div class="b-item"><strong>🏪 일반 (사업자)</strong> — 사업자등록증을 보유하고 사업을 하는 경우</div>
-            <div class="b-item"><strong>💻 프리랜서 (3.3%)</strong> — 사업자등록증 없고, 소득을 지급 받을 때 3.3%를 떼고 지급받는 경우</div>
-            <div class="b-item"><strong>🏢 부동산 임대</strong> — 부동산 임대 사업자</div>
-            <div class="b-item"><strong>📋 그외</strong> — 근로소득·이자배당·연금·기타 등만 있는 경우 (즉, 사업소득이 없는 경우)</div>
-          </div>
+          <details class="biz-info">
+            <summary>❓ 어떤 걸 골라야 할까요?</summary>
+            <div class="biz-info-body">
+              <div class="b-item"><strong>🏪 일반 (사업자)</strong> — 사업자등록증을 보유하고 사업을 하는 경우</div>
+              <div class="b-item"><strong>💻 프리랜서 (3.3%)</strong> — 사업자등록증 없고, 소득을 지급 받을 때 3.3%를 떼고 지급받는 경우</div>
+              <div class="b-item"><strong>🏢 부동산 임대</strong> — 부동산 임대 사업자</div>
+              <div class="b-item"><strong>📋 그외</strong> — 근로소득·이자배당·연금·기타 등만 있는 경우 (즉, 사업소득이 없는 경우)</div>
+              <p class="info-more">
+                📖 <strong>업종별 상세 기준·예시</strong>가 궁금하시면
+                <a href="#" data-blog-link="biztype" target="_blank" rel="noopener">블로그 글 보기 →</a>
+              </p>
+            </div>
+          </details>
         </div>
 
         <div class="nav-btns">
@@ -420,7 +465,7 @@
         <div class="step-title">공제받을 부양가족이 있으신가요?</div>
         <p style="font-size:13px;color:var(--ink-500);margin-bottom:10px">없으면 바로 다음 단계로.</p>
 
-        <details class="dep-help" open>
+        <details class="dep-help">
           <summary>❓ 공제받을 부양가족이란?</summary>
           <div class="dep-help-body">
             <p style="margin:8px 0 6px;font-weight:600">부양가족으로 인정받으려면 아래 두 가지를 모두 만족해야 해요.</p>
@@ -436,6 +481,10 @@
             </ul>
             <p style="margin:10px 0 4px"><strong>✨ 예외</strong></p>
             <p style="margin:0;color:var(--ink-700)">배우자(남편·아내)와 장애가 있는 가족은 나이는 따지지 않아요. 소득만 위 조건에 맞으면 돼요.</p>
+            <p class="info-more" style="margin-top:10px">
+              📖 <strong>부양가족 공제 더 자세히</strong> (장애인 공제·경로우대 등)
+              <a href="#" data-blog-link="dependents" target="_blank" rel="noopener">블로그 글 보기 →</a>
+            </p>
           </div>
         </details>
 
@@ -501,7 +550,7 @@
     </div>
 
     <p style="text-align:center;font-size:12px;color:var(--ink-500);margin:14px 0 26px">
-      문의: <a href="#" data-kakao="form-foot">카톡 채널</a> · 부산광역시 금정구 장전온천천로 83, 4층
+      문의: <a href="#" data-talk="form-foot">네이버 톡톡문의</a> · 부산광역시 금정구 장전온천천로 83, 4층
     </p>
   </div>
 </section>
@@ -515,103 +564,31 @@
       <p>접수번호: <strong id="recNo">-</strong></p>
     </div>
 
-    <!-- 후킹: 1분 진단 -->
+    <!-- 후킹: 기장 vs 신고대리 안내 (블로그 유도) -->
     <div class="section">
       <div class="section-head">
-        <span class="badge">1분 진단</span>
-        <h2>신고만 맡길 때 vs 기장 맡길 때,<br>세금 차이 1분에 확인</h2>
+        <span class="badge">📊 안내</span>
+        <h2>기장 vs 신고대리, 어떤 게 유리할까요?</h2>
       </div>
-      <p class="section-desc">5문항 답하시면 절세 가능금액과 추천 방향을 알려드려요. 개인정보 없이 이 기기에서만 계산됩니다.</p>
+      <p class="section-desc">자세한 비교와 사례별 추천은 아래 블로그 글에서 확인하실 수 있어요.</p>
 
-      <div class="quiz">
-        <div class="progress" style="margin-bottom:14px"><div class="progress-bar" id="qBar"></div></div>
-        <div class="quiz-step active" data-qstep="1">
-          <div class="quiz-q">Q1. 어떤 일을 하세요?</div>
-          <div class="quiz-opts" data-q="1">
-            <button class="quiz-opt" data-v="self">자영업 / 소상공인</button>
-            <button class="quiz-opt" data-v="free">프리랜서 / 1인 사업자</button>
-            <button class="quiz-opt" data-v="rent">부동산 임대</button>
-            <button class="quiz-opt" data-v="mix">두 가지 이상 복합</button>
-          </div>
+      <div class="blog-cta">
+        <div class="bc-icon">📖</div>
+        <div class="bc-text">
+          <strong>기장 vs 신고대리 완벽 비교</strong>
+          <span>매월 관리·절세 효과·세무조사 대응까지 한눈에</span>
         </div>
-        <div class="quiz-step" data-qstep="2">
-          <div class="quiz-q">Q2. 2025년 연 수입 규모는? <span style="font-size:11px;color:var(--ink-500);font-weight:500">(신고 대상 연도)</span></div>
-          <div class="quiz-opts" data-q="2">
-            <button class="quiz-opt" data-v="1">2,400만원 미만</button>
-            <button class="quiz-opt" data-v="2">2,400만원 ~ 7,500만원</button>
-            <button class="quiz-opt" data-v="3">7,500만원 ~ 1.5억</button>
-            <button class="quiz-opt" data-v="4">1.5억 이상</button>
-          </div>
-        </div>
-        <div class="quiz-step" data-qstep="3">
-          <div class="quiz-q">Q3. 영수증·매출 자료를 어떻게 관리하고 계세요?</div>
-          <div class="quiz-opts" data-q="3">
-            <button class="quiz-opt" data-v="3">거의 정리하지 못했어요</button>
-            <button class="quiz-opt" data-v="2">일부 정리는 했지만 누락이 있을 것 같아요</button>
-            <button class="quiz-opt" data-v="1">카드매출·현금영수증을 직접 정리해 놓았어요</button>
-            <button class="quiz-opt" data-v="0">사업소득이 없어 해당 없음</button>
-          </div>
-        </div>
-        <div class="quiz-step" data-qstep="4">
-          <div class="quiz-q">Q4. 작년 종합소득세 결정세액은 어땠나요?</div>
-          <div class="quiz-opts" data-q="4">
-            <button class="quiz-opt" data-v="2">처음이라 모르겠어요</button>
-            <button class="quiz-opt" data-v="0">환급을 받았어요</button>
-            <button class="quiz-opt" data-v="1">100만원 이하 납부</button>
-            <button class="quiz-opt" data-v="2">100만원 ~ 500만원 납부</button>
-            <button class="quiz-opt" data-v="3">500만원 초과 또는 가산세 부과됨</button>
-          </div>
-        </div>
-        <div class="quiz-step" data-qstep="5">
-          <div class="quiz-q">Q5. 사업 운영 형태는 어떻게 되세요?</div>
-          <div class="quiz-opts" data-q="5">
-            <button class="quiz-opt" data-v="0">1인 사업자 (직원·외주 없음)</button>
-            <button class="quiz-opt" data-v="1">단발성 외주·아르바이트만 있음</button>
-            <button class="quiz-opt" data-v="2">정규 직원 1~3명 운영</button>
-            <button class="quiz-opt" data-v="3">직원 4명 이상 또는 여러 업종/임대 보유</button>
-          </div>
-        </div>
-
-        <div class="quiz-nav" id="quizNavWrap">
-          <button class="btn btn-ghost" id="qPrev" style="visibility:hidden">← 이전</button>
-          <span style="font-size:12px;color:var(--ink-500)"><span id="qCur">1</span>/5</span>
-          <button class="btn btn-primary" id="qNext" disabled>다음 →</button>
-        </div>
-
-        <div class="quiz-result A" id="resultA">
-          <div class="result-tag">🟢 결과 A</div>
-          <div class="result-title">신고대리만으로 충분해요</div>
-          <div class="result-msg">올해는 신고대리로 깔끔하게 마무리하세요. 수입이 커지면 그때 기장을 검토해도 늦지 않아요.</div>
-          <a class="btn btn-kakao btn-full" href="#" data-kakao="A">💬 카톡 상담</a>
-        </div>
-        <div class="quiz-result B" id="resultB">
-          <div class="result-tag">🟡 결과 B</div>
-          <div class="result-title">기장 전환을 검토해 보세요</div>
-          <div class="result-msg">기장으로 경비 누락을 줄이면 <strong>평균 15~30% 세금이 가벼워지는</strong> 케이스가 많습니다.</div>
-          <table class="compare">
-            <tr><th></th><th>신고대리</th><th>기장대리</th></tr>
-            <tr><td>관리</td><td>5월 1회</td><td class="best">연중 매월</td></tr>
-            <tr><td>경비누락</td><td>가능</td><td class="best">최소화</td></tr>
-            <tr><td>부가세·원천세</td><td>별도</td><td class="best">포함</td></tr>
-          </table>
-          <a class="btn btn-kakao btn-full" href="#" data-kakao="B">💬 기장 상담 받기</a>
-        </div>
-        <div class="quiz-result C" id="resultC">
-          <div class="result-tag">🔴 결과 C</div>
-          <div class="result-title">기장을 강력 추천드려요</div>
-          <div class="result-msg">복식부기 의무 구간이거나 업종이 복합되어 있어, 기장 없이 신고만 맡기시면 <strong>가산세·경비누락 리스크</strong>가 큽니다.</div>
-          <a class="btn btn-kakao btn-full" href="#" data-kakao="C">💬 대표세무사와 1:1 상담</a>
-        </div>
+        <a href="#" data-blog-link="taxComparison" class="btn btn-primary">자세히 보기 →</a>
       </div>
     </div>
 
     <!-- 마지막 CTA -->
     <div class="hook-banner" style="background:#fff;color:var(--ink-900);border:1px solid var(--green-200)">
       <strong style="color:var(--green-700)">📩 궁금한 점이 있으신가요?</strong>
-      <span style="color:var(--ink-700);font-size:13px">카톡으로 편하게 문의주세요. 대표세무사가 직접 답변드립니다.</span>
+      <span style="color:var(--ink-700);font-size:13px">네이버 톡톡으로 편하게 문의주세요. 대표세무사가 직접 답변드립니다.</span>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        <a href="#" class="btn btn-kakao" data-kakao="bottom" style="background:#FEE500;color:#3A1D1D;flex:1;min-width:140px">💬 카톡 상담 시작</a>
-        <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="btn naver-cta" style="flex:1;min-width:140px">📍 네이버 후기 남기기</a>
+        <a href="#" class="btn btn-naver-talk" data-talk="bottom" style="flex:1;min-width:140px">💬 네이버 톡톡 문의</a>
+        <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="btn naver-cta" style="flex:1;min-width:140px">📍 더나은 세무회계 위치안내</a>
       </div>
     </div>
 
@@ -622,10 +599,19 @@
         <strong>접수가 만족스러우셨다면</strong>
         <span>네이버 플레이스에 짧은 후기 한 줄 부탁드려요.<br>다른 의뢰자분들께 큰 도움이 됩니다 🙇</span>
       </div>
-      <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="btn naver-cta">📍 네이버에서 후기 남기기 →</a>
+      <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" class="btn naver-cta">⭐ 후기 남기러 가기 →</a>
     </div>
   </div>
 </section>
+
+<!-- 모든 페이지에 떠 있는 네이버 톡톡 floating 버튼 -->
+<a href="https://talk.naver.com/W40R67" target="_blank" rel="noopener" class="float-talk" id="floatTalk" data-talk="floating">
+  <span class="ft-icon">💬</span>
+  <span>네이버 톡톡 문의</span>
+</a>
+<div class="float-tip" id="floatTip">
+  헷갈리는 경우 <strong>네이버 톡톡으로 바로 문의</strong>주세요!
+</div>
 
 <!-- 로딩 오버레이 -->
 <div id="loadingOverlay">
@@ -645,7 +631,7 @@
     부산광역시 금정구 장전온천천로 83, 4층 (장전동, 동행빌딩)<br>
     세무사업 · 금정세무서 관할</p>
     <p style="margin-top:10px">
-      <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" style="color:#A8E6A0;text-decoration:underline">📍 네이버 플레이스 바로가기 ›</a>
+      <a href="https://map.naver.com/p/entry/place/1727455132" target="_blank" rel="noopener" style="color:#A8E6A0;text-decoration:underline;font-weight:600">📍 더나은 세무회계 위치안내 ›</a>
     </p>
     <p style="margin-top:8px;color:#8FA98B">© 더나은세무회계</p>
   </div>
@@ -658,8 +644,16 @@ const CONFIG = {
   PUBLIC_KEY_URL: 'publickey.pem',
   /* Cloudflare Worker 엔드포인트 — Phase 3 */
   API_ENDPOINT:   'https://donaeun-tax-api.donaeun.workers.dev/api/submit',
-  /* 카카오 채널 */
-  KAKAO_URL:      'https://pf.kakao.com/_YOURID/chat',
+  /* 네이버 톡톡 */
+  NAVER_TALK_URL: 'https://talk.naver.com/W40R67',
+  /* 네이버 플레이스 */
+  NAVER_PLACE_URL: 'https://map.naver.com/p/entry/place/1727455132',
+  /* 블로그 — 슬러그별 다른 글로 라우팅 */
+  BLOG_URLS: {
+    biztype:       'https://blog.naver.com/better304/224267385628',  /* 업종별 안내 */
+    dependents:    'https://blog.naver.com/better304/224267379625',  /* 부양가족 공제 */
+    taxComparison: 'https://blog.naver.com/better304/223411654023'   /* 신고대리 vs 기장 */
+  },
   /* DEMO_MODE=true: 실제 전송 없이 콘솔에 암호화 페이로드 출력 */
   DEMO_MODE:      false,
   /* 암호화 페이로드 포맷 버전 */
@@ -1393,7 +1387,7 @@ function showQuizResult(){
 
 /* ═════════ 카카오 CTA ═════════ */
 document.addEventListener('click', e=>{
-  const a = e.target.closest('[data-kakao]');
+  const a = e.target.closest('[data-talk]');
   if(!a) return;
   e.preventDefault();
   const payload = {from:a.dataset.kakao, quizResult: quiz.result, quizAnswers: quiz.answers};
@@ -1404,7 +1398,30 @@ document.addEventListener('click', e=>{
       body: JSON.stringify({type:'cta_click', ...payload, ts:new Date().toISOString()})
     }).catch(()=>{});
   }
-  window.open(CONFIG.KAKAO_URL, '_blank', 'noopener');
+  window.open(CONFIG.NAVER_TALK_URL, '_blank', 'noopener');
+});
+
+/* Floating 톡톡 — 페이지 진입 직후 안내 말풍선 4초 노출 후 자동 숨김 */
+(function(){
+  const tip = document.getElementById('floatTip');
+  if(!tip) return;
+  setTimeout(()=> tip.classList.add('show'), 1200);
+  setTimeout(()=> tip.classList.remove('show'), 5500);
+  /* 한 번 사용자 행동 있으면 즉시 숨김 */
+  ['click','scroll','keydown','touchstart'].forEach(ev =>
+    window.addEventListener(ev, () => tip.classList.remove('show'), { once:true, passive:true })
+  );
+})();
+
+/* 블로그 링크 처리 — 슬러그별 다른 글로 매핑 */
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-blog-link]');
+  if(!a) return;
+  e.preventDefault();
+  const slug = a.dataset.blogLink || '';
+  const url = (CONFIG.BLOG_URLS && CONFIG.BLOG_URLS[slug]) || '';
+  if(!url) return;
+  window.open(url, '_blank', 'noopener');
 });
 </script>
 </body>
