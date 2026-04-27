@@ -467,9 +467,9 @@
         <div class="field">
           <label>주민등록번호 <span class="req">*</span></label>
           <div class="rrn-wrap">
-            <input type="text" name="rrnFront" maxlength="6" inputmode="numeric" required placeholder="앞 6자리" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+            <input type="text" name="rrnFront" maxlength="6" inputmode="numeric" placeholder="앞 6자리" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
             <span class="dash">-</span>
-            <input type="password" name="rrnBack" maxlength="7" inputmode="numeric" required placeholder="뒷 7자리" autocomplete="off" />
+            <input type="password" name="rrnBack" maxlength="7" inputmode="numeric" placeholder="뒷 7자리" autocomplete="off" />
           </div>
         </div>
         <div class="nav-btns">
@@ -619,7 +619,7 @@
       </ul>
 
       <div class="taxpro-cta" style="margin-top:18px">
-        <a href="https://blog.naver.com/better304/223405898884" target="_blank" rel="noopener" class="btn btn-primary">⭐ 더나은 세무회계를 선택하는 이유 →</a>
+        <a href="https://blog.naver.com/better304/223405898884" target="_blank" rel="noopener" class="btn btn-primary">⭐ 고객만족 사례 보러가기 →</a>
       </div>
     </div>
 
@@ -1400,58 +1400,8 @@ function finishSubmit(){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* ═════════ 진단 퀴즈 ═════════ */
+/* (구) 1분 진단 퀴즈 — UI 제거됨, 코드 삭제 */
 const quiz = {answers:{}, step:1, result:null};
-function renderQ(){
-  $('#qBar').style.width = ((quiz.step-1)/5*100)+'%';
-  $('#qCur').textContent = quiz.step;
-  $('#qPrev').style.visibility = quiz.step>1 ? 'visible' : 'hidden';
-  $('#qNext').disabled = !quiz.answers[quiz.step];
-  $('#qNext').textContent = quiz.step===5 ? '결과 보기 →' : '다음 →';
-}
-function showQ(n){
-  $$('.quiz-step').forEach(s=>s.classList.toggle('active', +s.dataset.qstep===n));
-  quiz.step=n; renderQ();
-}
-$$('.quiz-opt').forEach(opt=>{
-  opt.addEventListener('click',()=>{
-    const q = +opt.parentElement.dataset.q;
-    $$('[data-q="'+q+'"] .quiz-opt').forEach(o=>o.classList.remove('selected'));
-    opt.classList.add('selected');
-    quiz.answers[q] = opt.dataset.v;
-    renderQ();
-    /* 자동 진행 — 250ms 후 다음 문항으로 (또는 마지막이면 결과) */
-    setTimeout(() => {
-      if(quiz.step < 5) showQ(quiz.step + 1);
-      else showQuizResult();
-    }, 250);
-  });
-});
-$('#qNext').addEventListener('click',()=>{
-  if(quiz.step<5) showQ(quiz.step+1);
-  else showQuizResult();
-});
-$('#qPrev').addEventListener('click',()=>{
-  if(quiz.step>1) showQ(quiz.step-1);
-});
-function showQuizResult(){
-  $$('.quiz-step').forEach(s=>s.classList.remove('active'));
-  $('#quizNavWrap').style.display='none';
-  $('#qBar').style.width='100%';
-  const a = quiz.answers;
-  let score = 0;
-  score += {self:1, free:0, rent:1, mix:2}[a[1]]||0;
-  score += +a[2]-1;
-  score += +a[3]-1;
-  score += +a[4]-1;
-  score += {'1':0,'2':0,'3':1}[a[5]]||0;
-  const forceC = a[2]==='3' || a[2]==='4' || a[1]==='mix';
-  let tag='A';
-  if(forceC || score>=7) tag='C';
-  else if(score>=3) tag='B';
-  $('#result'+tag).classList.add('active');
-  quiz.result = tag;
-}
 
 /* ═════════ 카카오 CTA ═════════ */
 document.addEventListener('click', e=>{
@@ -1499,3 +1449,4 @@ document.addEventListener('click', e => {
 </script>
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
