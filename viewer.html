@@ -213,7 +213,7 @@
         </tbody>
       </table>
     </div>
-    <p style="font-size:11px;color:#888;margin-top:14px">데이터는 30일 후 자동 삭제됩니다. 처리완료 항목은 즉시 영구 삭제됩니다.</p>
+    <p style="font-size:11px;color:#888;margin-top:14px">데이터는 30일 후 자동 삭제됩니다. 출력완료 항목은 즉시 영구 삭제됩니다.</p>
 
     <!-- 인라인 상세 영역 (행 클릭 시 카드가 여기 쌓임) -->
     <div class="details-toolbar" id="detailsToolbar" style="display:none">
@@ -633,12 +633,32 @@ function fillPublic(ctx){
     ['연락처',     pd.phone, { copy:true, edit:'phone' }],
     ['업종구분',   bizTypeLabel(pd.bizType)],
     ['소득종류',   pd.incomeTypes, { edit:'incomeTypes' }],
-    ['기타소득',   pd.incomeEtc, { edit:'incomeEtc', placeholder:'(없음)' }],
+    ['전달사항',   pd.message || pd.incomeEtc, { edit:'message', placeholder:'(없음)' }],
+    ['환급계좌',   pd.bankAccount, { copy:true, placeholder:'(해당없음)' }],
     ['부양가족',   formatDeps(pd.dependents)],
     ['진단결과',   pd.quizResult || '(없음)'],
     ['동의',       `필수1=${pd.agree1?'✓':'✗'} · 필수2=${pd.agree2?'✓':'✗'} · 마케팅=${pd.agree3?'✓':'✗'}`],
     ['제출시각',   fmtDate(pd.submittedAt)]
   ];
+
+  /* 금액 항목 (Step 6 자유 입력) */
+  if(pd.amounts && typeof pd.amounts === 'object'){
+    const labelMap = {
+      fixedCost:'사업장 고정비', autoCost:'자동차 경비', loanInterest:'대출이자',
+      officeRent:'사무실 임대료', payroll:'인건비', telecom:'통신비',
+      propertyLoan:'부동산 취득 대출이자'
+    };
+    Object.entries(pd.amounts).forEach(([k,v])=>{
+      if(v) fields.push([`💰 ${labelMap[k]||k}`, v]);
+    });
+  }
+  /* 자유 입력 메모 (mixed) */
+  if(pd.miscNotes && typeof pd.miscNotes === 'object'){
+    const labelMap = { business:'기타 사업 경비', rental:'그외 임대 경비' };
+    Object.entries(pd.miscNotes).forEach(([k,v])=>{
+      if(v) fields.push([`📝 ${labelMap[k]||k}`, v]);
+    });
+  }
   ctx.el.querySelector('.public-data').innerHTML = fields.map(([k,v,opt])=>{
     const o = opt || {};
     const display = (v == null || v === '') ? (o.placeholder || '-') : escapeHtml(v);
@@ -781,7 +801,8 @@ function renderCardDecrypted(ctx){
   if(Array.isArray(s.dependents_rrn)){
     s.dependents_rrn.forEach((rrn, i) => {
       const p = depPub[i] || {};
-      fields.push([`부양가족 ${i+1} (${p.rel||''} ${p.name||''})`, rrn, `dep_${i}`]);
+      const disLabel = p.disability ? ` 장애${p.disability}` : '';
+      fields.push([`부양가족 ${i+1} (${p.rel||''} ${p.name||''}${disLabel})`, rrn, `dep_${i}`]);
     });
   }
   ctx.el.querySelector('.sensitive-fields').innerHTML = fields.map(([k,v,key])=>{
@@ -1152,12 +1173,32 @@ ${pages}
 </html>`;
 }
 
+function buildAmountsRows(amounts, miscNotes){
+  const e = (v) => escapeHtml(v == null ? '' : String(v));
+  const a = amounts || {};
+  const m = miscNotes || {};
+  const labels = {
+    fixedCost:'사업장 고정비', autoCost:'자동차 경비', loanInterest:'대출이자',
+    officeRent:'사무실 임대료', payroll:'인건비', telecom:'통신비',
+    propertyLoan:'부동산 취득 대출이자'
+  };
+  let rows = '';
+  Object.entries(labels).forEach(([k, label])=>{
+    if(a[k]) rows += `<tr><td class="label">${label}</td><td colspan="3">${e(a[k])}</td></tr>`;
+  });
+  const miscLabels = { business:'기타 사업 경비', rental:'그외 임대 경비' };
+  Object.entries(miscLabels).forEach(([k, label])=>{
+    if(m[k]) rows += `<tr><td class="label">${label}</td><td colspan="3">${e(m[k])}</td></tr>`;
+  });
+  return rows;
+}
+
 function buildOneReportPage(item, dec, files){
   const pd = item.public_data || {};
   const s = dec.sensitive || {};
   const depPub = pd.dependents || [];
   const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
-  const depLines = depPub.map((p, i) => `${p.rel||''} / ${p.name||''} / ${depRrn[i]||''}`).join('<br>') || '(없음)';
+  const depLines = depPub.map((p, i) => `${p.rel||''} / ${p.name||''} / ${depRrn[i]||''} / 장애${p.disability||'x'}`).join('<br>') || '(없음)';
   const fileList = files || [];
   const filesSummary = fileList.length === 0
     ? '(없음)'
@@ -1211,8 +1252,14 @@ function buildOneReportPage(item, dec, files){
   </tr>
   <tr>
     <td class="label">소득 종류</td>
-    <td colspan="3">${e(pd.incomeTypes)}${pd.incomeEtc ? ' / 기타: ' + e(pd.incomeEtc) : ''}</td>
+    <td colspan="3">${e(pd.incomeTypes)}</td>
   </tr>
+  <tr>
+    <td class="label">전달사항</td>
+    <td colspan="3">${e(pd.message || pd.incomeEtc || '')}</td>
+  </tr>
+  ${pd.bankAccount ? `<tr><td class="label">환급 계좌</td><td colspan="3">${e(pd.bankAccount)}</td></tr>` : ''}
+  ${buildAmountsRows(pd.amounts, pd.miscNotes)}
   <tr>
     <td class="label">첨부 자료 목록</td>
     <td colspan="3" style="font-size:9.5pt;color:#444">${e(filesSummary)}</td>
@@ -1327,7 +1374,7 @@ function buildExportRow(item, dec){
   const s = dec.sensitive || {};
   const depPub = pd.dependents || [];
   const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
-  const depCombined = depPub.map((p, i) => `${p.rel||''}_${p.name||''}_${depRrn[i]||''}`).join(' | ');
+  const depCombined = depPub.map((p, i) => `${p.rel||''}_${p.name||''}_${depRrn[i]||''}_장애${p.disability||'x'}`).join(' | ');
 
   return {
     '접수번호': item.id,
@@ -1342,7 +1389,17 @@ function buildExportRow(item, dec){
     '홈택스ID': s.hometax_id || '',
     '홈택스PW': s.hometax_pw || '',
     '소득종류': pd.incomeTypes || '',
-    '기타소득': pd.incomeEtc || '',
+    '전달사항': pd.message || pd.incomeEtc || '',
+    '환급계좌': pd.bankAccount || '',
+    '사업장고정비': (pd.amounts && pd.amounts.fixedCost) || '',
+    '자동차경비': (pd.amounts && pd.amounts.autoCost) || '',
+    '대출이자': (pd.amounts && pd.amounts.loanInterest) || '',
+    '사무실임대료': (pd.amounts && pd.amounts.officeRent) || '',
+    '인건비': (pd.amounts && pd.amounts.payroll) || '',
+    '통신비': (pd.amounts && pd.amounts.telecom) || '',
+    '부동산대출이자': (pd.amounts && pd.amounts.propertyLoan) || '',
+    '기타사업경비메모': (pd.miscNotes && pd.miscNotes.business) || '',
+    '기타임대경비메모': (pd.miscNotes && pd.miscNotes.rental) || '',
     '부양가족(관계_이름_주민번호)': depCombined || '(없음)',
     '진단결과': pd.quizResult || '',
     '동의_필수1': pd.agree1 ? 'Y' : 'N',
@@ -1546,7 +1603,7 @@ function bizTypeLabel(b){
   return ({self:'일반',free:'프리랜서',rent:'부동산임대'})[b] || b || '-';
 }
 function statusLabel(s){
-  return ({pending:'🟡 대기', completed:'🟢 처리완료'})[s] || s || '-';
+  return ({pending:'🟡 대기', completed:'🟢 출력완료'})[s] || s || '-';
 }
 
 /* 상태 즉시 토글 — optimistic UI (네트워크 응답 안 기다림) */
@@ -1579,7 +1636,10 @@ async function toggleItemStatus(id){
 }
 function formatDeps(arr){
   if(!Array.isArray(arr) || arr.length===0) return '(없음)';
-  return arr.map(d=>`${d.rel||''} ${d.name||''}`).join(' · ');
+  return arr.map(d => {
+    const dis = d.disability ? `(장애${d.disability})` : '';
+    return `${d.rel||''} ${d.name||''}${dis}`;
+  }).join(' · ');
 }
 
 /* ════════════════════════════════════════════════════
