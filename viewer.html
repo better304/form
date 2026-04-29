@@ -1153,7 +1153,7 @@ async function runXlsxExport(){
   const total = ids.length;
   toast(`엑셀 보고서 생성 중… (0/${total})`, 60000);
 
-  /* 텍스트만 필요 (이미지 압축 불필요) — getSubmissionTextForExport 별도 사용 */
+  /* 텍스트만 복호화 (이미지 임베드 없음) */
   const submissions = [];
   let done = 0;
   for(const id of ids){
@@ -1168,23 +1168,19 @@ async function runXlsxExport(){
   }
   if(submissions.length === 0){ toast('생성 실패', 3000); return; }
 
-  /* 한 사람 = 한 워크북. 여러명이면 zip 대신 각각 다운로드 */
-  for(const s of submissions){
-    try {
-      const buf = await fillXlsxTemplate(s);
-      const targetName = (s.item.public_data && s.item.public_data.targetName) || s.item.id;
-      const safeName = String(targetName).replace(/[\\/:*?"<>|]/g, '_');
-      const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
-      downloadXlsx(buf, `종소세_${safeName}_${ymd}.xlsx`);
-      /* 연속 다운로드 방지 — 살짝 대기 */
-      await new Promise(r => setTimeout(r, 300));
-    } catch(err){
-      console.error('Excel build failed:', err);
-      toast(`엑셀 생성 실패: ${err.message}`, 5000);
-      return;
-    }
+  /* 1개 워크북에 N개 시트(이름=신고대상자) */
+  try {
+    const buf = await buildXlsxWorkbookMulti(submissions);
+    const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const fname = total === 1
+      ? `종소세_${(submissions[0].item.public_data && submissions[0].item.public_data.targetName) || submissions[0].item.id}_${ymd}.xlsx`
+      : `종소세_보고서_${ymd}_${total}건.xlsx`;
+    downloadXlsx(buf, fname);
+    toast(`✓ ${total}건 엑셀 보고서(시트 ${total}개) 다운로드 완료`, 3000);
+  } catch(err){
+    console.error('Excel multi-sheet build failed:', err);
+    toast(`엑셀 생성 실패: ${err.message}`, 5000);
   }
-  toast(`✓ ${total}건 엑셀 보고서 다운로드 완료`, 3000);
 }
 
 /* 텍스트만 복호화 (Excel 보고서는 이미지 임베드 안 함) */
@@ -1203,108 +1199,150 @@ async function getSubmissionTextOnly(id){
   return { item, sensitive };
 }
 
-/* 양식 워크북에 셀 채우기 (템플릿 보존) */
-async function fillXlsxTemplate({ item, sensitive }){
-  const buf = await loadXlsxTemplate();
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(buf);
-  const ws = wb.worksheets[0];   /* "수정2 시트" */
-  if(!ws) throw new Error('양식 시트가 비어있습니다');
-
+/* 한 시트에 셀 값 채우기 (양식 스타일은 그대로 보존) */
+function fillSheetCells(ws, { item, sensitive }){
   const pd = item.public_data || {};
   const s = sensitive || {};
 
-  /* ───── 매핑 ───── */
-  /* 헤더 — 기존/신규 */
   setCellWrap(ws, 'D3', pd.userType === 'new' ? '신규' : (pd.userType === 'existing' ? '기존' : ''));
-  /* E3 (수정 차수) — 빈칸 (사용자가 직접) */
-
-  /* 신고자 / 의뢰자 */
   setCellWrap(ws, 'B4', pd.targetName || '');
   setCellWrap(ws, 'D4', pd.phone || '');
   setCellWrap(ws, 'B5', pd.requesterName || '');
   setCellWrap(ws, 'D5', pd.requesterPhone || '');
 
-  /* 업종 */
   let bizText = bizTypeLabel(pd.bizType);
-  if(pd.bizType === 'free' && pd.income7000){
-    bizText += ` (${income7000Label(pd.income7000)})`;
-  }
+  if(pd.bizType === 'free' && pd.income7000) bizText += ` (${income7000Label(pd.income7000)})`;
   setCellWrap(ws, 'B6', bizText);
 
-  /* 주민등록번호 */
   setCellWrap(ws, 'B7', s.rrn || '');
 
-  /* 홈택스 ID/PW */
   let hometax = '';
-  if(s.hometax_id || s.hometax_pw){
-    hometax = `ID: ${s.hometax_id || ''}\nPW: ${s.hometax_pw || ''}`;
-  }
+  if(s.hometax_id || s.hometax_pw) hometax = `ID: ${s.hometax_id || ''}\nPW: ${s.hometax_pw || ''}`;
   setCellWrap(ws, 'B8', hometax);
 
-  /* 부양가족 — 관계/성함/주민등록번호/장애여부, 여러명은 줄바꿈 */
   const depPub = Array.isArray(pd.dependents) ? pd.dependents : [];
   const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
   let depText = '';
-  if(pd.hasDependents === 'no'){
-    depText = '없음';
-  } else if(depPub.length > 0){
+  if(pd.hasDependents === 'no') depText = '없음';
+  else if(depPub.length > 0){
     depText = depPub.map((d, i) => {
-      const rel  = d.rel || '';
-      const name = d.name || '';
-      const rrn  = depRrn[i] || '';
-      const dis  = d.disability === 'o' ? '장애O' : '장애X';
+      const rel = d.rel || '', name = d.name || '', rrn = depRrn[i] || '';
+      const dis = d.disability === 'o' ? '장애O' : '장애X';
       return `${rel}/${name}/${rrn}/${dis}`;
     }).join('\n');
   }
   setCellWrap(ws, 'B9', depText);
 
-  /* 소득종류 / 전달사항 */
   setCellWrap(ws, 'B10', pd.incomeTypes || '');
   setCellWrap(ws, 'B11', pd.message || '');
 
-  /* 업체진행사항 (B14~D18) — 모두 빈칸 (출력 후 사무실 기입) */
-  /* 부가가치세 (E16) — 빈칸 */
-  /* 전년도 소득률(B21), 건강보험료(D21), 부가세(B22), 신용카드(D22) — 모두 빈칸 */
-
-  /* 신고자료 섹션 */
   const amounts = pd.amounts || {};
   const miscNotes = pd.miscNotes || {};
 
-  /* B23 — 고정비 합계 (+ 통신비 합쳐서 줄바꿈) */
+  /* B23 — 고정비 + 통신비 */
   const fixedParts = [];
   if(amounts.fixedCost) fixedParts.push(amounts.fixedCost);
   if(amounts.telecom)   fixedParts.push(`[통신비] ${amounts.telecom}`);
   setCellWrap(ws, 'B23', fixedParts.join('\n'));
 
-  /* D23 — 대출이자 (loanInterest + propertyLoan) */
+  /* D23 — 대출이자 (사업 + 부동산) */
   const loanParts = [];
   if(amounts.loanInterest) loanParts.push(amounts.loanInterest);
   if(amounts.propertyLoan) loanParts.push(`[부동산 취득 대출이자] ${amounts.propertyLoan}`);
   setCellWrap(ws, 'D23', loanParts.join('\n'));
 
-  /* B24 — 자동차 관련 경비 */
   setCellWrap(ws, 'B24', amounts.autoCost || '');
-
-  /* B25 — 임차료 (사무실 임대료) */
   setCellWrap(ws, 'B25', amounts.officeRent || '');
-
-  /* D25 — 인건비 */
   setCellWrap(ws, 'D25', amounts.payroll || '');
 
-  /* B26 — 재산세 (접수 데이터 없음 — 빈칸) */
-
-  /* B27 — 기타비용 (miscNotes.business + miscNotes.rental) */
+  /* B27 — 기타비용 */
   const miscParts = [];
   if(miscNotes.business) miscParts.push(`[사업 기타경비] ${miscNotes.business}`);
   if(miscNotes.rental)   miscParts.push(`[임대 기타경비] ${miscNotes.rental}`);
   setCellWrap(ws, 'B27', miscParts.join('\n'));
 
-  /* B28 — 환급계좌 */
   setCellWrap(ws, 'B28', pd.bankAccount || '');
+}
 
-  /* 출력 */
-  return await wb.xlsx.writeBuffer();
+/* 시트 복제 — 양식 워크북 자체를 한 번 더 로드한 뒤 그 시트의 cell·style·merge·width를 마스터 워크북에 옮김 */
+async function appendTemplateSheetForSubmission(masterWb, submission, sheetName){
+  /* 양식을 새 임시 워크북으로 로드 */
+  const tmpWb = new ExcelJS.Workbook();
+  await tmpWb.xlsx.load(await loadXlsxTemplate());
+  const tmpWs = tmpWb.worksheets[0];
+
+  /* 데이터 채움 */
+  fillSheetCells(tmpWs, submission);
+
+  /* 마스터 워크북에 동일 이름 시트 신설 */
+  const newWs = masterWb.addWorksheet(sheetName);
+
+  /* 컬럼 너비 복사 */
+  if(tmpWs.columns){
+    tmpWs.columns.forEach((col, idx) => {
+      if(col && col.width) newWs.getColumn(idx + 1).width = col.width;
+    });
+  }
+  /* 시트 속성 */
+  if(tmpWs.properties) newWs.properties = JSON.parse(JSON.stringify(tmpWs.properties));
+  if(tmpWs.views)      newWs.views      = JSON.parse(JSON.stringify(tmpWs.views));
+
+  /* 셀 + 행 높이 + 스타일 복사 */
+  tmpWs.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+    const newRow = newWs.getRow(rowNumber);
+    if(row.height) newRow.height = row.height;
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      const newCell = newRow.getCell(colNumber);
+      if(cell.value !== null && cell.value !== undefined) newCell.value = cell.value;
+      if(cell.style) newCell.style = JSON.parse(JSON.stringify(cell.style));
+    });
+  });
+
+  /* 병합셀 복사 */
+  const mergeRanges = (tmpWs.model && tmpWs.model.merges) ? tmpWs.model.merges : [];
+  mergeRanges.forEach(range => {
+    try { newWs.mergeCells(range); } catch(e){ console.warn('Merge skip', range, e); }
+  });
+
+  return newWs;
+}
+
+/* 시트명 생성 (Excel 제한: 31자, 일부 문자 금지, 워크북 내 중복 방지) */
+function makeUniqueSheetName(wb, base){
+  const sanitized = String(base || '').replace(/[\\\/\?\*\[\]:]/g, '_').trim() || '접수';
+  let name = sanitized.slice(0, 31);
+  let i = 2;
+  while(wb.worksheets.some(w => w.name === name)){
+    const suffix = `_${i}`;
+    name = sanitized.slice(0, 31 - suffix.length) + suffix;
+    i++;
+  }
+  return name;
+}
+
+/* 다건 워크북 생성: 1번째는 양식 워크북을 그대로 활용 + 시트명 변경, 나머지는 복제 */
+async function buildXlsxWorkbookMulti(submissions){
+  if(!submissions || submissions.length === 0) throw new Error('제출 건이 없습니다');
+  const masterWb = new ExcelJS.Workbook();
+  await masterWb.xlsx.load(await loadXlsxTemplate());
+  const firstWs = masterWb.worksheets[0];
+  if(!firstWs) throw new Error('양식 시트가 비어있습니다');
+
+  /* 1번째: 그대로 채움 + 시트명 변경 */
+  fillSheetCells(firstWs, submissions[0]);
+  const firstName = makeUniqueSheetName(masterWb,
+    (submissions[0].item.public_data && submissions[0].item.public_data.targetName) || '접수1');
+  firstWs.name = firstName;
+
+  /* 2번째부터: 복제 */
+  for(let i = 1; i < submissions.length; i++){
+    const sub = submissions[i];
+    const target = (sub.item.public_data && sub.item.public_data.targetName) || `접수${i+1}`;
+    const name = makeUniqueSheetName(masterWb, target);
+    await appendTemplateSheetForSubmission(masterWb, sub, name);
+  }
+
+  return await masterWb.xlsx.writeBuffer();
 }
 
 /* 셀에 값 + wrapText (줄바꿈 보이게) — 기존 폰트/배경/테두리 보존 */
