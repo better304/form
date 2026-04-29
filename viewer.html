@@ -72,9 +72,14 @@
   /* 인라인 편집 필드 */
   .status-select{padding:5px 6px;border:1.5px solid #BFBFBF;border-radius:6px;background:#fff;font-size:12px;font-family:inherit;cursor:pointer;min-width:104px}
   .status-select:focus{outline:none;border-color:#2D5F3F}
+  .status-select.saving{border-color:#E8A82C;background:#FFFCEB}
+  .status-select.saved{border-color:#4E8B3A;background:#F0F7EA}
   .admin-input{width:100%;min-width:80px;padding:5px 7px;border:1.5px solid #DDD;border-radius:6px;font-size:12px;background:#fff;font-family:inherit}
   .admin-input.admin-memo{min-width:140px}
+  .admin-input.admin-money{min-width:96px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:.3px;font-family:Consolas,Menlo,'Apple SD Gothic Neo',monospace;color:#1A4480}
+  .admin-input.admin-money:not(:placeholder-shown){background:#F8FAFE}
   .admin-input:focus{outline:none;border-color:#2D5F3F;background:#FFFEF5}
+  .admin-input.saved{border-color:#4E8B3A;background:#F0F7EA}
 
   .list-card{background:#fff;border:1px solid #EAEAEA;border-radius:10px;overflow:hidden}
   table{width:100%;border-collapse:collapse}
@@ -240,7 +245,6 @@
             <th>수수료</th>
             <th>부가가치세</th>
             <th>메모</th>
-            <th>만료</th>
           </tr>
         </thead>
         <tbody id="rows">
@@ -554,10 +558,9 @@ function renderList(){
       <td>${escapeHtml(bizTypeLabel(it.bizType))}</td>
       <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
       <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
-      <td><input type="text" class="admin-input admin-fee" data-id="${escapeHtml(it.id)}" data-field="admin_fee" value="${escapeHtml(adminFee)}" placeholder="수수료" /></td>
-      <td><input type="text" class="admin-input admin-vat" data-id="${escapeHtml(it.id)}" data-field="admin_vat" value="${escapeHtml(adminVat)}" placeholder="부가세" /></td>
+      <td><input type="text" class="admin-input admin-money admin-fee" data-id="${escapeHtml(it.id)}" data-field="admin_fee" value="${escapeHtml(formatMoney(adminFee))}" placeholder="0" /></td>
+      <td><input type="text" class="admin-input admin-money admin-vat" data-id="${escapeHtml(it.id)}" data-field="admin_vat" value="${escapeHtml(formatMoney(adminVat))}" placeholder="0" /></td>
       <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
-      <td style="font-size:11px;color:#888">${escapeHtml(fmtDate(it.expires_at))}</td>
     </tr>`;
   }).join('');
 
@@ -570,30 +573,55 @@ function renderList(){
     if(cards.has(id)) collapseCard(id);
     else expandCard(id);
   }));
-  /* 상태 드롭다운 변경 — optimistic UI */
+  /* 상태 드롭다운 변경 — 즉시 시각 피드백 + fire-and-forget 저장 */
   $$('.status-select').forEach(sel => {
     sel.addEventListener('click', e => e.stopPropagation());
-    sel.addEventListener('change', async e => {
+    sel.addEventListener('change', e => {
       e.stopPropagation();
       const id = sel.dataset.id;
       const oldVal = sel.dataset.old;
       const newVal = sel.value;
       if(oldVal === newVal) return;
-      await updateItemStatus(id, newVal, oldVal);
+      /* 즉시 시각 피드백 (저장 중 → 저장 완료) */
+      sel.classList.add('saving');
+      sel.classList.remove('saved');
+      updateItemStatus(id, newVal, oldVal, sel);
     });
   });
-  /* 관리 필드 (수수료/부가세/메모) — blur/Enter 저장 */
+  /* 관리 필드 (수수료/부가세/메모) — 입력 중 콤마, blur/Enter 시 저장 */
   $$('.admin-input').forEach(inp => {
     inp.addEventListener('click', e => e.stopPropagation());
+    /* 회계 서식 — 입력 중 천단위 콤마 자동 (커서 위치 보존) */
+    if(inp.classList.contains('admin-money')){
+      inp.addEventListener('input', e => {
+        const before = inp.value;
+        const cursor = inp.selectionStart;
+        const digitsBefore = before.slice(0, cursor).replace(/[^\d]/g, '').length;
+        const formatted = formatMoney(before);
+        inp.value = formatted;
+        /* 같은 자릿수만큼 커서 이동 */
+        let count = 0, newPos = formatted.length;
+        for(let i=0; i<formatted.length; i++){
+          if(/\d/.test(formatted[i])) count++;
+          if(count === digitsBefore){ newPos = i + 1; break; }
+        }
+        try{ inp.setSelectionRange(newPos, newPos); }catch(_){}
+      });
+    }
     inp.addEventListener('keydown', e => {
       if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); }
     });
-    inp.addEventListener('change', async e => {
+    inp.addEventListener('change', e => {
       e.stopPropagation();
       const id = inp.dataset.id;
       const field = inp.dataset.field;
-      const value = inp.value;
-      await updateItemAdminField(id, field, value);
+      let value = inp.value;
+      /* 회계 필드는 숫자만 저장 */
+      if(inp.classList.contains('admin-money')){
+        value = moneyDigits(value);
+        inp.value = formatMoney(value);
+      }
+      updateItemAdminField(id, field, value, inp);
     });
   });
   /* 체크박스 토글 */
@@ -2006,6 +2034,18 @@ function income7000Label(v){
 function hasDepsLabel(v){
   return v === 'yes' ? '있음' : (v === 'no' ? '없음' : '');
 }
+/* 회계 서식 — 콤마 천단위. 입력값에서 숫자만 추출 후 toLocaleString */
+function formatMoney(v){
+  if(v == null || v === '') return '';
+  const digits = String(v).replace(/[^\d]/g, '');
+  if(!digits) return '';
+  return Number(digits).toLocaleString('ko-KR');
+}
+/* 저장용 — 콤마 제거 후 숫자 문자열만 (백엔드/엑셀에서 재가공 용이) */
+function moneyDigits(v){
+  return String(v || '').replace(/[^\d]/g, '');
+}
+
 function statusLabel(s){
   return ({
     pending:   '🟡 대기',
@@ -2023,50 +2063,65 @@ function statusOptions(){
   ];
 }
 
-/* 상태 변경 — optimistic UI */
-async function updateItemStatus(id, newStatus, oldStatus){
+/* 상태 변경 — 즉시 반영 (UI 차단 없음, 결과는 백그라운드 동기화) */
+function updateItemStatus(id, newStatus, oldStatus, selEl){
   const li = state.items.find(it => it.id === id);
-  if(!li){ return; }
+  if(!li) return;
 
-  /* 즉시 갱신 + 집계 */
+  /* 1) 즉시 화면 갱신 (대기 시간 0) */
   li.status = newStatus;
   const ctx = cards.get(id);
   if(ctx && ctx.item) ctx.item.status = newStatus;
   refreshStatusSummary();
 
-  try{
-    await api(`/api/item/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: newStatus })
-    });
-    toast(`✓ ${statusLabel(newStatus)}로 변경`, 1500);
-  }catch(err){
+  /* 2) 백그라운드 저장 (await 없음) */
+  api(`/api/item/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: newStatus })
+  }).then(() => {
+    if(selEl){
+      selEl.dataset.old = newStatus;
+      selEl.classList.remove('saving');
+      selEl.classList.add('saved');
+      setTimeout(() => selEl.classList.remove('saved'), 800);
+    }
+  }).catch(err => {
+    /* 실패 시 롤백 */
     li.status = oldStatus;
     if(ctx && ctx.item) ctx.item.status = oldStatus;
-    renderList();
+    if(selEl){
+      selEl.classList.remove('saving','saved');
+      selEl.value = oldStatus;
+      selEl.dataset.old = oldStatus;
+    }
+    refreshStatusSummary();
     toast('상태 변경 실패: ' + err.message, 4000);
-  }
+  });
 }
 
-/* 관리 필드 (수수료/부가세/메모) 저장 — debounce 없이 blur/Enter 시 즉시 */
-async function updateItemAdminField(id, field, value){
+/* 관리 필드 — 즉시 반영 + 백그라운드 저장 */
+function updateItemAdminField(id, field, value, inpEl){
   const li = state.items.find(it => it.id === id);
-  if(!li){ return; }
+  if(!li) return;
   const oldVal = li[field] || '';
   if(oldVal === value) return;
 
   li[field] = value;
-  try{
-    await api(`/api/item/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ [field]: value })
-    });
-    toast(`✓ 저장됨`, 1200);
-  }catch(err){
+  api(`/api/item/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ [field]: value })
+  }).then(() => {
+    if(inpEl){
+      inpEl.classList.add('saved');
+      setTimeout(() => inpEl.classList.remove('saved'), 800);
+    }
+  }).catch(err => {
     li[field] = oldVal;
-    renderList();
+    if(inpEl){
+      inpEl.value = inpEl.classList.contains('admin-money') ? formatMoney(oldVal) : oldVal;
+    }
     toast(`저장 실패: ${err.message}`, 4000);
-  }
+  });
 }
 function formatDeps(arr){
   if(!Array.isArray(arr) || arr.length===0) return '(없음)';
@@ -2209,7 +2264,7 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('대시보드');
     /* 헤더 */
-    const headers = ['접수일','신고대상자','연락처','업종','유형','상태','수수료','부가가치세','메모','만료일'];
+    const headers = ['접수일','신고대상자','연락처','업종','유형','상태','수수료(원)','부가가치세(원)','메모'];
     ws.addRow(headers);
     const headerRow = ws.getRow(1);
     headerRow.font = { bold:true, color:{argb:'FFFFFFFF'} };
@@ -2220,6 +2275,8 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     for(const it of state.items){
       const userTxt = it.userType === 'new' ? '신규' : (it.userType === 'existing' ? '기존' : '');
       const statusTxt = ({pending:'대기',completed:'출력완료',filed:'신고완료',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
+      const feeNum = parseInt(moneyDigits(it.admin_fee), 10);
+      const vatNum = parseInt(moneyDigits(it.admin_vat), 10);
       const row = ws.addRow([
         fmtDate(it.submitted_at),
         it.target_name || '',
@@ -2227,15 +2284,19 @@ $('#btnDashXlsx').addEventListener('click', async () => {
         bizTypeLabel(it.bizType),
         userTxt,
         statusTxt,
-        it.admin_fee || '',
-        it.admin_vat || '',
-        it.admin_memo || '',
-        fmtDate(it.expires_at)
+        Number.isFinite(feeNum) ? feeNum : '',
+        Number.isFinite(vatNum) ? vatNum : '',
+        it.admin_memo || ''
       ]);
       row.alignment = { vertical:'middle', wrapText:true };
+      /* 회계 서식 (₩#,##0) — G(7)/H(8) */
+      row.getCell(7).numFmt = '#,##0';
+      row.getCell(8).numFmt = '#,##0';
+      row.getCell(7).alignment = { vertical:'middle', horizontal:'right' };
+      row.getCell(8).alignment = { vertical:'middle', horizontal:'right' };
     }
     /* 컬럼 너비 */
-    const widths = [18, 14, 14, 12, 8, 12, 14, 14, 30, 18];
+    const widths = [18, 14, 14, 12, 8, 12, 14, 14, 32];
     widths.forEach((w, i) => { ws.getColumn(i+1).width = w; });
     /* 집계 (하단) */
     const counts = { pending:0, completed:0, filed:0, canceled:0 };
@@ -2243,7 +2304,8 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     ws.addRow([]);
     const summaryRow = ws.addRow([
       `대기 ${counts.pending}명 · 출력완료 ${counts.completed}명 · 신고완료 ${counts.filed}명 · 접수취소 ${counts.canceled}명`,
-      '', '', '', '', `총 ${state.items.length}명`
+      '', '', '', '', `총 ${state.items.length}명`,
+      '', '', ''
     ]);
     summaryRow.font = { bold:true };
     summaryRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF4F8EC'} };
