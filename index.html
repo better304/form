@@ -219,6 +219,25 @@
   .doc-item .dhow{font-size:12px;color:var(--green-700);margin-top:6px;background:var(--green-100);padding:8px;border-radius:6px}
   .doc-item .doc-help-link{display:inline-block;margin-top:8px;font-size:12px;color:#03C75A;font-weight:600;text-decoration:none;padding:4px 0}
   .doc-item .doc-help-link:hover{color:#02A549;text-decoration:underline}
+  /* tally(합계 다중 행) UI */
+  .doc-item.doc-tally .dhead{margin-bottom:8px}
+  .doc-item.doc-tally .dname .unit{color:#888;font-weight:500;font-size:12px}
+  .doc-item.doc-tally .btn-add-tally{padding:6px 12px;border:1.5px solid var(--green-500);border-radius:8px;background:#fff;color:var(--green-700);font-size:12.5px;font-weight:700;cursor:pointer;transition:all .12s}
+  .doc-item.doc-tally .btn-add-tally:hover{background:var(--green-100)}
+  .tally-rows{display:flex;flex-direction:column;gap:6px}
+  .tally-row{display:grid;grid-template-columns:1fr 1fr auto auto;gap:6px;align-items:center;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:8px;padding:6px 8px}
+  .tally-row .tally-label-wrap{min-width:0}
+  .tally-row select.tally-label,
+  .tally-row input.tally-custom,
+  .tally-row input.tally-custom-only{width:100%;padding:8px 10px;border:1.5px solid var(--ink-300);border-radius:6px;font-size:13px;background:#fff;font-family:inherit}
+  .tally-row select.tally-label:focus,
+  .tally-row input.tally-custom:focus,
+  .tally-row input.tally-custom-only:focus{outline:none;border-color:var(--green-500)}
+  .tally-row input.tally-amount{padding:8px 10px;border:1.5px solid #FFB6B6;border-radius:6px;font-size:13px;color:#A02020;background:#FFFAFA;text-align:right;font-family:inherit}
+  .tally-row input.tally-amount:focus{outline:none;border-color:#D33;background:#fff;color:#1A1A1A}
+  .tally-row .tally-won{font-size:12px;color:#666;font-weight:600}
+  .tally-row .tally-del{padding:4px 8px;border:none;background:transparent;color:#999;font-size:14px;cursor:pointer;border-radius:4px}
+  .tally-row .tally-del:hover{background:#FEE;color:#D33}
   .doc-item .dhow a{text-decoration:underline}
   .file-field{border:1.5px dashed var(--ink-300);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--ink-500);background:#FAFBF7;cursor:pointer;position:relative;white-space:nowrap}
   .file-field input{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -323,11 +342,16 @@
   .taxpro-cta .btn{padding:12px 28px;font-size:14px}
   .taxpro-photo{margin:0 auto 18px;max-width:380px}
   .taxpro-photo img{width:100%;height:auto;border-radius:14px;display:block;box-shadow:0 6px 20px rgba(0,0,0,.10)}
-  .taxpro-credentials{list-style:none;padding:18px 16px;margin:0;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:12px;text-align:left}
-  .taxpro-credentials li{position:relative;padding:8px 0 8px 20px;border-bottom:1px solid #EFF2EA;font-size:13px;color:var(--ink-700);line-height:1.55}
-  .taxpro-credentials li:last-child{border-bottom:none}
-  .taxpro-credentials li::before{content:"✓";position:absolute;left:0;top:8px;color:#2D5F3F;font-weight:800}
-  .taxpro-credentials li strong{color:#2D5F3F;font-weight:700}
+  .taxpro-credentials{list-style:none;padding:16px 18px;margin:18px 0 0;background:linear-gradient(180deg,#FAFBF7 0%,#F4F8EC 100%);border:1px solid #D5DFC4;border-radius:14px;text-align:left;word-break:keep-all;overflow-wrap:break-word}
+  .taxpro-credentials li{position:relative;padding:10px 0 10px 26px;border-bottom:1px dashed #DCE3CD;font-size:13.5px;color:var(--ink-700);line-height:1.6}
+  .taxpro-credentials li:last-child{border-bottom:none;padding-bottom:2px}
+  .taxpro-credentials li:first-child{padding-top:2px}
+  .taxpro-credentials li::before{content:"✓";position:absolute;left:2px;top:9px;color:#fff;background:#4E8B3A;font-weight:800;font-size:10px;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;line-height:1}
+  .taxpro-credentials li:first-child::before{top:3px}
+  .taxpro-credentials .cred-text{color:#444;font-weight:500}
+  .taxpro-credentials .cred-arrow{color:#888;font-size:11px;margin:0 2px;font-weight:600}
+  .taxpro-credentials .cred-highlight{color:#C2410C;font-weight:800;background:linear-gradient(180deg,transparent 60%,#FFF0CC 60%);padding:0 2px;white-space:nowrap}
+  .taxpro-credentials .cred-highlight-soft{color:#2D5F3F;font-weight:800;background:linear-gradient(180deg,transparent 60%,#D5EBC2 60%);padding:0 2px;white-space:nowrap}
 
   /* ── 후킹 배너 ────────────────────────── */
   .hook-banner{background:linear-gradient(135deg,var(--green-700),var(--green-500));color:#fff;border-radius:12px;padding:16px;font-size:13.5px;margin:18px 0}
@@ -550,7 +574,7 @@
         <div class="field">
           <label>홈택스 ID</label>
           <input type="text" name="hometaxId" placeholder="아이디" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
-          <div class="hint">ID/PW 모르시면 <a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스 바로가기</a>에서 확인</div>
+          <div class="hint">ID/PW 모르시면 <a href="https://hometax.go.kr/websquare/websquare.html?w2xPath=/ui/pp/index_pp.xml&menuCd=index3" target="_blank" rel="noopener">홈택스 ID/PW 확인 페이지 →</a></div>
         </div>
         <div class="field">
           <label>홈택스 비밀번호</label>
@@ -627,17 +651,18 @@
         <img src="kim-promo.jpg" alt="더나은세무회계 김나은 세무사" />
       </div>
 
-      <ul class="taxpro-credentials">
-        <li>조 단위 상장법인, 서울 H호텔 세무관리부터 무실적 법인 세무관리 등 다양한 경험 보유</li>
-        <li>200억 대 개인 자산가, 병의원 등 세무조사 대응</li>
-        <li>세금 1억 2천 요식업 ▶ <strong>세금 100% 감면</strong></li>
-        <li>연 매출 20억 제조업 ▶ <strong>세금 9천만 원 환급</strong></li>
-        <li>대형세무플랫폼 <strong>100건 평점 만점</strong></li>
-      </ul>
-
-      <div class="taxpro-cta" style="margin-top:18px">
+      <!-- 사진 바로 아래로 위치 변경 -->
+      <div class="taxpro-cta">
         <a href="https://blog.naver.com/better304/223405898884" target="_blank" rel="noopener" class="btn btn-primary">⭐ 고객만족 사례 보러가기 →</a>
       </div>
+
+      <ul class="taxpro-credentials">
+        <li><span class="cred-text">조 단위 상장법인, 서울 H호텔 세무관리부터 무실적 법인 세무관리 등 다양한 경험 보유</span></li>
+        <li><span class="cred-text">200억 대 개인 자산가, 병의원 등 세무조사 대응</span></li>
+        <li><span class="cred-text">세금 1억 2천 요식업</span> <span class="cred-arrow">▶</span> <strong class="cred-highlight">세금 100% 감면</strong></li>
+        <li><span class="cred-text">연 매출 20억 제조업</span> <span class="cred-arrow">▶</span> <strong class="cred-highlight">세금 9천만 원 환급</strong></li>
+        <li><span class="cred-text">대형세무플랫폼</span> <strong class="cred-highlight-soft">100건 평점 만점</strong></li>
+      </ul>
     </div>
 
     <!-- 마지막 CTA — 톡톡 / 위치 별도 줄 -->
@@ -1104,19 +1129,26 @@ const DOC_DEFS = {
                   helpLink:'https://blog.naver.com/better304/224269360646', helpText:'종합소득세 신고안내문·소득 증빙서류 받는 법' },
   incomeProof:  { type:'file', k:'incomeProof', name:'각 소득에 대한 증빙서류',
                   helpLink:'https://blog.naver.com/better304/224269360646', helpText:'종합소득세 신고안내문·소득 증빙서류 받는 법' },
-  /* 일반사업자 옵션 */
-  fixedCost:    { type:'text',  k:'amount_fixedCost',    name:'2025년 사업장 고정비 합계', placeholder:'ex) 전기료, 가스료, 통신비, 인터넷 등' },
-  autoCost:     { type:'text',  k:'amount_autoCost',     name:'2025년 자동차 관련 경비 합계', placeholder:'ex) 리스료, 유류비, 통행비 등' },
-  loanInterest: { type:'text',  k:'amount_loanInterest', name:'2025년 사업관련 대출이자 합계', placeholder:'사업에 쓸 용도로 받은 대출의 이자' },
-  officeRent:   { type:'text',  k:'amount_officeRent',   name:'2025년 사무실 임대료 합계' },
-  payroll:      { type:'text',  k:'amount_payroll',      name:'2025년 신고한 인건비 합계', placeholder:'직원 인건비를 국세청에 신고한 경우에만 작성' },
+  /* 일반사업자 옵션 — tally(다중 행) 타입 */
+  fixedCost:    { type:'tally', k:'amount_fixedCost',    name:'2025년 사업장 고정비 합계',
+                  examples:['전기료','가스료','통신비','인터넷'] },
+  autoCost:     { type:'tally', k:'amount_autoCost',     name:'2025년 자동차 관련 경비 합계',
+                  examples:['리스료','유류비','통행비'] },
+  loanInterest: { type:'tally', k:'amount_loanInterest', name:'2025년 사업관련 대출이자 합계',
+                  examples:[] },
+  officeRent:   { type:'tally', k:'amount_officeRent',   name:'2025년 사무실 임대료 합계',
+                  examples:['월세','관리비'] },
+  payroll:      { type:'tally', k:'amount_payroll',      name:'2025년 신고한 인건비 합계',
+                  examples:[] },
   miscBiz:      { type:'mixed', k:'misc_business',       name:'그외 기타 사업 관련 경비', placeholder:'ex) 사업 관련 보험료 등' },
   /* 프리랜서 옵션 */
-  telecom:      { type:'text',  k:'amount_telecom',  name:'2025년 통신비 합계', placeholder:'고정비 합계로 연결해주시면 됩니다' },
+  telecom:      { type:'tally', k:'amount_telecom',  name:'2025년 통신비 합계',
+                  examples:[] },
   /* 부동산 임대 옵션 */
   localTax:     { type:'file',  k:'localTax',            name:'지방세 세목별 과세증명서',
                   helpLink:'https://blog.naver.com/better304/224267935869', helpText:'지방세 세목별 과세증명서 받는 법' },
-  propertyLoan: { type:'text',  k:'amount_propertyLoan', name:'부동산 취득 관련 대출이자 내역', placeholder:'부동산 취득을 위해 받은 대출의 이자' },
+  propertyLoan: { type:'tally', k:'amount_propertyLoan', name:'2025년 부동산 취득 관련 대출이자 내역',
+                  examples:[] },
   miscRental:   { type:'mixed', k:'misc_rental',         name:'그외 사업 관련 경비', placeholder:'ex) 수선비, 중개수수료' }
 };
 
@@ -1203,7 +1235,68 @@ function renderDocList(){
       inp.closest('.file-field').classList.toggle('has', inp.files.length>0);
     });
   });
+
+  /* tally(합계 다중 행) 핸들러 — + 추가 */
+  $$('#docList [data-tally-add]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.tallyAdd;
+      const box = $(`[data-tally-rows="${key}"]`);
+      if(!box) return;
+      let examples = [];
+      try { examples = JSON.parse(box.dataset.tallyExamples || '[]'); } catch(e) {}
+      box.insertAdjacentHTML('beforeend', renderTallyRow(examples));
+    });
+  });
 }
+
+/* 한 줄 row HTML — 예시 있으면 select, 없으면 직접 입력 텍스트 */
+function renderTallyRow(examples){
+  const hasExamples = Array.isArray(examples) && examples.length > 0;
+  const labelInput = hasExamples
+    ? `<select class="tally-label">
+         ${examples.map(ex => `<option value="${escapeHtmlSimple(ex)}">${escapeHtmlSimple(ex)}</option>`).join('')}
+         <option value="__custom__">직접 입력</option>
+       </select>
+       <input type="text" class="tally-custom" placeholder="항목명 직접 입력" style="display:none" />`
+    : `<input type="text" class="tally-custom-only" placeholder="항목명 직접 입력" />`;
+  return `
+    <div class="tally-row">
+      <div class="tally-label-wrap">${labelInput}</div>
+      <input type="text" class="tally-amount" inputmode="numeric" placeholder="금액" />
+      <span class="tally-won">원</span>
+      <button type="button" class="tally-del" title="삭제">✕</button>
+    </div>`;
+}
+
+/* tally row 이벤트: 직접 입력 토글 + 콤마 자동 표시 + 삭제 */
+document.addEventListener('change', e => {
+  if(e.target.classList.contains('tally-label')){
+    const sel = e.target;
+    const customInp = sel.parentElement.querySelector('.tally-custom');
+    if(!customInp) return;
+    if(sel.value === '__custom__'){
+      sel.style.display = 'none';
+      customInp.style.display = '';
+      customInp.focus();
+    } else {
+      customInp.style.display = 'none';
+      sel.style.display = '';
+      customInp.value = '';
+    }
+  }
+});
+document.addEventListener('input', e => {
+  if(e.target.classList.contains('tally-amount')){
+    const v = (e.target.value || '').replace(/[^\d]/g, '');
+    e.target.value = v ? Number(v).toLocaleString('ko-KR') : '';
+  }
+});
+document.addEventListener('click', e => {
+  if(e.target.classList.contains('tally-del')){
+    const row = e.target.closest('.tally-row');
+    if(row) row.remove();
+  }
+});
 
 function renderDocEntry(d, required){
   const star = required ? '<span class="req">*</span> ' : '';
@@ -1229,6 +1322,19 @@ function renderDocEntry(d, required){
     <div class="doc-item doc-text">
       <div class="dname">${star}${d.name}</div>
       <input type="text" class="doc-text-input" data-amount="${d.k}" placeholder="${d.placeholder||''}" />
+      ${helpLink}
+    </div>`;
+  }
+  if(d.type === 'tally'){
+    /* d.k 에서 'amount_' 접두어 제거한 것이 amounts 키 — 'amount_fixedCost' → 'fixedCost' */
+    const examples = Array.isArray(d.examples) ? d.examples : [];
+    return `
+    <div class="doc-item doc-tally" data-tally-key="${d.k}">
+      <div class="dhead">
+        <div class="dname">${star}${d.name} <span class="unit">(원)</span></div>
+        <button type="button" class="btn-add-tally" data-tally-add="${d.k}">+ 추가</button>
+      </div>
+      <div class="tally-rows" data-tally-rows="${d.k}" data-tally-examples='${JSON.stringify(examples)}'></div>
       ${helpLink}
     </div>`;
   }
@@ -1336,9 +1442,10 @@ $('#appForm').addEventListener('submit', async e=>{
     }
   }
 
-  /* ── 금액·자유입력 (Step 6 텍스트 칸) 수집 ── */
+  /* ── 금액·자유입력 수집 ── */
   const amounts = {};
   const miscNotes = {};
+  /* (1) 단순 텍스트/혼합 입력 (bankAccount, miscBiz, miscRental) */
   $$('#docList [data-amount]').forEach(inp => {
     const k = inp.dataset.amount;
     const v = (inp.value || '').trim();
@@ -1346,6 +1453,28 @@ $('#appForm').addEventListener('submit', async e=>{
     if(k.startsWith('amount_')) amounts[k.slice(7)] = v;
     else if(k.startsWith('misc_')) miscNotes[k.slice(5)] = v;
     else if(k === 'bankAccount') publicData.bankAccount = v;
+  });
+  /* (2) tally(합계 다중 행) — 각 행을 "항목명 금액원" 형태로 결합 */
+  $$('#docList [data-tally-rows]').forEach(box => {
+    const rawKey = box.dataset.tallyRows;          /* 예: 'amount_fixedCost' */
+    const itemKey = rawKey.replace(/^amount_/, ''); /* 'fixedCost' */
+    const rows = $$('.tally-row', box);
+    const lines = [];
+    rows.forEach(r => {
+      const sel    = r.querySelector('select.tally-label');
+      const custom = r.querySelector('input.tally-custom');
+      const only   = r.querySelector('input.tally-custom-only');
+      const amtInp = r.querySelector('input.tally-amount');
+      let label = '';
+      if(sel && sel.value && sel.value !== '__custom__') label = sel.value;
+      else if(custom && custom.style.display !== 'none') label = (custom.value || '').trim();
+      else if(only) label = (only.value || '').trim();
+      const amtNum = ((amtInp && amtInp.value) || '').replace(/[^\d]/g, '');
+      if(label && amtNum){
+        lines.push(`${label} ${Number(amtNum).toLocaleString('ko-KR')}원`);
+      }
+    });
+    if(lines.length) amounts[itemKey] = lines.join(' · ');
   });
   if(Object.keys(amounts).length) publicData.amounts = amounts;
   if(Object.keys(miscNotes).length) publicData.miscNotes = miscNotes;
