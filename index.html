@@ -625,19 +625,14 @@
         </div>
       </div>
 
-      <!-- Step 6: 소득 종류 / 전달사항 -->
+      <!-- Step 6: 전달사항 -->
       <div class="form-step" data-fstep="6">
-        <div class="step-head"><span class="step-pos"><strong>5</strong> / 6</span><span>소득종류 / 전달사항</span></div>
-        <div class="step-title">소득 종류와 전달사항을 적어주세요</div>
-
-        <div class="field">
-          <label>📝 소득 종류 <span class="req">*</span></label>
-          <textarea name="incomeTypes" rows="4" placeholder="25년에 발생한 소득의 종류를 작성해 주시면 됩니다.&#10;ex) 근로소득, 사업소득, 대리운전 소득 등"></textarea>
-        </div>
+        <div class="step-head"><span class="step-pos"><strong>5</strong> / 6</span><span>전달사항</span></div>
+        <div class="step-title">전달사항을 적어주세요</div>
 
         <div class="field">
           <label>💬 전달사항 <span style="font-weight:500;color:var(--ink-500);font-size:11px">(선택)</span></label>
-          <textarea name="message" rows="4" placeholder="세무사에게 전달하고 싶은 말씀을 자유롭게 기록하시면 됩니다."></textarea>
+          <textarea name="message" rows="6" placeholder="세무사에게 전달하고 싶은 말씀을 자유롭게 기록하시면 됩니다."></textarea>
         </div>
 
         <div class="nav-btns">
@@ -1129,12 +1124,8 @@ function validateStep(n){
     }
     return true;
   }
-  /* Step 6 — 소득 종류 / 전달사항 */
-  if(s === '6'){
-    const inc = ($('[name="incomeTypes"]').value || '').trim();
-    if(inc.length < 2){ alert('소득 종류를 작성해 주세요'); $('[name="incomeTypes"]').focus(); return false; }
-    return true;
-  }
+  /* Step 6 — 전달사항 (선택, 검증 없음) */
+  if(s === '6') return true;
   return true;
 }
 updateStepLabels();
@@ -1542,7 +1533,6 @@ $('#appForm').addEventListener('submit', async e=>{
     bizType:       data.bizType || '',
     income7000:    income7000,            /* 'high' | 'low' | '' (프리랜서만) */
     hasDependents: hasDependents,         /* 'yes' | 'no' */
-    incomeTypes:   (data.incomeTypes || '').trim(),
     message:       (data.message || '').trim(),
     dependents:    depsPublic,
     agree1:        !!$('[name="agree1"]').checked,
