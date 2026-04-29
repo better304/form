@@ -1451,13 +1451,16 @@ async function buildXlsxWorkbookMulti(submissions){
   return await masterWb.xlsx.writeBuffer();
 }
 
-/* 셀에 값 + wrapText (줄바꿈 보이게) — 기존 폰트/배경/테두리 보존 */
+/* 셀에 값 + wrapText + 폰트 크기 16 (입력 데이터만, 라벨은 양식 그대로 유지) */
 function setCellWrap(ws, addr, value){
   const cell = ws.getCell(addr);
   cell.value = value || '';
   /* 기존 alignment 유지하되 wrapText만 켜기 */
   const prev = cell.alignment || {};
   cell.alignment = { ...prev, wrapText: true, vertical: prev.vertical || 'middle' };
+  /* 폰트 — 기존 속성(bold/color/name 등) 보존 + size 16 강제 */
+  const prevFont = cell.font || {};
+  cell.font = { ...prevFont, size: 16 };
 }
 
 function downloadXlsx(arrayBuffer, filename){
