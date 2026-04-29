@@ -7,6 +7,8 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 <title>접수 관리 · 더나은세무회계</title>
+<!-- ExcelJS — 양식 .xlsx 보존 + 셀 값만 채워서 다운로드 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" integrity="sha512-FxkHPxbPaPm4oZhi7CPcMVyAd/upHtUg7WOyMzry17/WUTjPCCzZl60Erhuc4VioD3FHlvR6Nrn1XmRr5Bj57g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#1A1A1A;background:#F5F7F2;line-height:1.55;font-size:14px}
@@ -190,7 +192,8 @@
     <div class="bulk-bar" id="bulkBar">
       <span class="count" id="bulkCount">0건 선택</span>
       <button class="btn warn sm" id="btnBulkOpen">📂 일괄 보기</button>
-      <button class="btn sm" id="btnBulkExport" style="background:#0c7c4a;color:#fff">📊 엑셀(CSV)</button>
+      <button class="btn sm" id="btnBulkExport" style="background:#0c7c4a;color:#fff">📊 CSV</button>
+      <button class="btn sm" id="btnBulkXlsx" style="background:#107C41;color:#fff">📗 Excel 보고서</button>
       <button class="btn sm" id="btnBulkWord" style="background:#1f4e79;color:#fff">📄 Word 보고서</button>
       <button class="btn ghost sm" id="btnBulkClear">선택 해제</button>
       <span style="margin-left:auto;font-size:11px;color:#888">행 체크박스로 선택 후 액션 실행</span>
@@ -204,6 +207,7 @@
             <th>대상자</th>
             <th>연락처</th>
             <th>업종</th>
+            <th>유형</th>
             <th>상태</th>
             <th>만료</th>
           </tr>
@@ -512,6 +516,7 @@ function renderList(){
       <td><strong>${escapeHtml(it.target_name||'-')}</strong></td>
       <td>${escapeHtml(it.phone||'-')}</td>
       <td>${escapeHtml(bizTypeLabel(it.bizType))}</td>
+      <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
       <td><span class="pill ${status} status-toggle" data-id="${escapeHtml(it.id)}" title="클릭하여 상태 토글">${statusLabel(status)}</span></td>
       <td style="font-size:11px;color:#888">${escapeHtml(fmtDate(it.expires_at))}</td>
     </tr>`;
@@ -548,7 +553,7 @@ function updateBulkBar(){
   $('#bulkCount').textContent = `${n}건 선택`;
   $('#bulkBar').classList.toggle('has-selection', n > 0);
   /* 선택 0건일 때 액션 버튼 비활성화 */
-  ['#btnBulkOpen','#btnBulkExport','#btnBulkWord','#btnBulkClear'].forEach(s => {
+  ['#btnBulkOpen','#btnBulkExport','#btnBulkXlsx','#btnBulkWord','#btnBulkClear'].forEach(s => {
     const b = $(s); if(b) b.disabled = n === 0;
   });
 }
@@ -609,6 +614,7 @@ function fillPublicSkeleton(ctx, listItem){
   ctx.el.querySelector('.card-title').textContent = (listItem.target_name || '-') + ' 접수';
   ctx.el.querySelector('.card-sub').textContent = `⏳ 로딩 중… · 접수: ${fmtDate(listItem.submitted_at)}`;
   const fields = [
+    ['이용유형', userTypeLabel(listItem.userType)],
     ['신고대상자', listItem.target_name],
     ['연락처', listItem.phone],
     ['업종구분', bizTypeLabel(listItem.bizType)],
@@ -634,6 +640,7 @@ function fillPublic(ctx){
     ? '없음'
     : (formatDeps(pd.dependents) || '없음');
   const fields = [
+    ['이용유형',   userTypeLabel(pd.userType)],
     ['신고대상자',  pd.targetName, { copy:true, edit:'targetName' }],
     ['의뢰자',     pd.requesterName, { copy:true, edit:'requesterName', placeholder:'(없음)' }],
     ['연락처',     pd.phone, { copy:true, edit:'phone' }],
@@ -1070,6 +1077,7 @@ $('#btnBulkWord').addEventListener('click', async () => {
   if(!state.privKey){
     pendingWordExport = true;
     pendingExport = false;
+    pendingXlsxExport = false;
     pendingDecryptCardId = null;
     $('#decryptErr').textContent = '';
     $('#privFile').value = '';
@@ -1079,6 +1087,28 @@ $('#btnBulkWord').addEventListener('click', async () => {
     return;
   }
   await runWordExport();
+});
+
+let pendingXlsxExport = false;
+$('#btnBulkXlsx').addEventListener('click', async () => {
+  if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
+  if(typeof ExcelJS === 'undefined'){
+    toast('ExcelJS 라이브러리 로드 실패. 인터넷 연결 확인 후 페이지 새로고침', 5000);
+    return;
+  }
+  if(!state.privKey){
+    pendingXlsxExport = true;
+    pendingWordExport = false;
+    pendingExport = false;
+    pendingDecryptCardId = null;
+    $('#decryptErr').textContent = '';
+    $('#privFile').value = '';
+    $('#privPwd').value = '';
+    $('#decryptModal').classList.add('active');
+    setTimeout(()=>$('#privFile').focus(), 100);
+    return;
+  }
+  await runXlsxExport();
 });
 
 async function runWordExport(){
@@ -1107,15 +1137,207 @@ async function runWordExport(){
   toast(`✓ ${total}건 Word 보고서 다운로드 완료`, 3000);
 }
 
+/* ═════════ Excel 보고서 — 양식 .xlsx 셀 채워서 다운로드 ═════════ */
+let xlsxTemplateCache = null;
+async function loadXlsxTemplate(){
+  if(xlsxTemplateCache) return xlsxTemplateCache.slice(0); /* 복사본 반환 */
+  const res = await fetch('excel-template.xlsx', { cache: 'no-cache' });
+  if(!res.ok) throw new Error(`양식 파일 로드 실패: HTTP ${res.status}`);
+  xlsxTemplateCache = await res.arrayBuffer();
+  return xlsxTemplateCache.slice(0);
+}
+
+async function runXlsxExport(){
+  if(state.selected.size === 0) return;
+  const ids = state.items.filter(it => state.selected.has(it.id)).map(it => it.id);
+  const total = ids.length;
+  toast(`엑셀 보고서 생성 중… (0/${total})`, 60000);
+
+  /* 텍스트만 필요 (이미지 압축 불필요) — getSubmissionTextForExport 별도 사용 */
+  const submissions = [];
+  let done = 0;
+  for(const id of ids){
+    try{
+      const data = await getSubmissionTextOnly(id);
+      submissions.push(data);
+    }catch(err){
+      console.error('Excel export failed for', id, err);
+    }
+    done++;
+    toast(`엑셀 보고서 생성 중… (${done}/${total})`, 60000);
+  }
+  if(submissions.length === 0){ toast('생성 실패', 3000); return; }
+
+  /* 한 사람 = 한 워크북. 여러명이면 zip 대신 각각 다운로드 */
+  for(const s of submissions){
+    try {
+      const buf = await fillXlsxTemplate(s);
+      const targetName = (s.item.public_data && s.item.public_data.targetName) || s.item.id;
+      const safeName = String(targetName).replace(/[\\/:*?"<>|]/g, '_');
+      const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      downloadXlsx(buf, `종소세_${safeName}_${ymd}.xlsx`);
+      /* 연속 다운로드 방지 — 살짝 대기 */
+      await new Promise(r => setTimeout(r, 300));
+    } catch(err){
+      console.error('Excel build failed:', err);
+      toast(`엑셀 생성 실패: ${err.message}`, 5000);
+      return;
+    }
+  }
+  toast(`✓ ${total}건 엑셀 보고서 다운로드 완료`, 3000);
+}
+
+/* 텍스트만 복호화 (Excel 보고서는 이미지 임베드 안 함) */
+async function getSubmissionTextOnly(id){
+  const ctx = cards.get(id);
+  if(ctx && ctx.item && ctx.decrypted){
+    return { item: ctx.item, sensitive: ctx.decrypted.sensitive };
+  }
+  const r = await api(`/api/item/${id}`);
+  const item = r.item;
+  const enc = item.encrypted;
+  const aesRaw = await crypto.subtle.decrypt({ name:'RSA-OAEP' }, state.privKey, b64ToBytes(enc.aes_key));
+  const aesKey = await crypto.subtle.importKey('raw', aesRaw, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+  const textBuf = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64ToBytes(enc.iv_text) }, aesKey, b64ToBytes(enc.text));
+  const sensitive = JSON.parse(new TextDecoder().decode(textBuf));
+  return { item, sensitive };
+}
+
+/* 양식 워크북에 셀 채우기 (템플릿 보존) */
+async function fillXlsxTemplate({ item, sensitive }){
+  const buf = await loadXlsxTemplate();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf);
+  const ws = wb.worksheets[0];   /* "수정2 시트" */
+  if(!ws) throw new Error('양식 시트가 비어있습니다');
+
+  const pd = item.public_data || {};
+  const s = sensitive || {};
+
+  /* ───── 매핑 ───── */
+  /* 헤더 — 기존/신규 */
+  setCellWrap(ws, 'D3', pd.userType === 'new' ? '신규' : (pd.userType === 'existing' ? '기존' : ''));
+  /* E3 (수정 차수) — 빈칸 (사용자가 직접) */
+
+  /* 신고자 / 의뢰자 */
+  setCellWrap(ws, 'B4', pd.targetName || '');
+  setCellWrap(ws, 'D4', pd.phone || '');
+  setCellWrap(ws, 'B5', pd.requesterName || '');
+  setCellWrap(ws, 'D5', pd.requesterPhone || '');
+
+  /* 업종 */
+  let bizText = bizTypeLabel(pd.bizType);
+  if(pd.bizType === 'free' && pd.income7000){
+    bizText += ` (${income7000Label(pd.income7000)})`;
+  }
+  setCellWrap(ws, 'B6', bizText);
+
+  /* 주민등록번호 */
+  setCellWrap(ws, 'B7', s.rrn || '');
+
+  /* 홈택스 ID/PW */
+  let hometax = '';
+  if(s.hometax_id || s.hometax_pw){
+    hometax = `ID: ${s.hometax_id || ''}\nPW: ${s.hometax_pw || ''}`;
+  }
+  setCellWrap(ws, 'B8', hometax);
+
+  /* 부양가족 — 관계/성함/주민등록번호/장애여부, 여러명은 줄바꿈 */
+  const depPub = Array.isArray(pd.dependents) ? pd.dependents : [];
+  const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
+  let depText = '';
+  if(pd.hasDependents === 'no'){
+    depText = '없음';
+  } else if(depPub.length > 0){
+    depText = depPub.map((d, i) => {
+      const rel  = d.rel || '';
+      const name = d.name || '';
+      const rrn  = depRrn[i] || '';
+      const dis  = d.disability === 'o' ? '장애O' : '장애X';
+      return `${rel}/${name}/${rrn}/${dis}`;
+    }).join('\n');
+  }
+  setCellWrap(ws, 'B9', depText);
+
+  /* 소득종류 / 전달사항 */
+  setCellWrap(ws, 'B10', pd.incomeTypes || '');
+  setCellWrap(ws, 'B11', pd.message || '');
+
+  /* 업체진행사항 (B14~D18) — 모두 빈칸 (출력 후 사무실 기입) */
+  /* 부가가치세 (E16) — 빈칸 */
+  /* 전년도 소득률(B21), 건강보험료(D21), 부가세(B22), 신용카드(D22) — 모두 빈칸 */
+
+  /* 신고자료 섹션 */
+  const amounts = pd.amounts || {};
+  const miscNotes = pd.miscNotes || {};
+
+  /* B23 — 고정비 합계 (+ 통신비 합쳐서 줄바꿈) */
+  const fixedParts = [];
+  if(amounts.fixedCost) fixedParts.push(amounts.fixedCost);
+  if(amounts.telecom)   fixedParts.push(`[통신비] ${amounts.telecom}`);
+  setCellWrap(ws, 'B23', fixedParts.join('\n'));
+
+  /* D23 — 대출이자 (loanInterest + propertyLoan) */
+  const loanParts = [];
+  if(amounts.loanInterest) loanParts.push(amounts.loanInterest);
+  if(amounts.propertyLoan) loanParts.push(`[부동산 취득 대출이자] ${amounts.propertyLoan}`);
+  setCellWrap(ws, 'D23', loanParts.join('\n'));
+
+  /* B24 — 자동차 관련 경비 */
+  setCellWrap(ws, 'B24', amounts.autoCost || '');
+
+  /* B25 — 임차료 (사무실 임대료) */
+  setCellWrap(ws, 'B25', amounts.officeRent || '');
+
+  /* D25 — 인건비 */
+  setCellWrap(ws, 'D25', amounts.payroll || '');
+
+  /* B26 — 재산세 (접수 데이터 없음 — 빈칸) */
+
+  /* B27 — 기타비용 (miscNotes.business + miscNotes.rental) */
+  const miscParts = [];
+  if(miscNotes.business) miscParts.push(`[사업 기타경비] ${miscNotes.business}`);
+  if(miscNotes.rental)   miscParts.push(`[임대 기타경비] ${miscNotes.rental}`);
+  setCellWrap(ws, 'B27', miscParts.join('\n'));
+
+  /* B28 — 환급계좌 */
+  setCellWrap(ws, 'B28', pd.bankAccount || '');
+
+  /* 출력 */
+  return await wb.xlsx.writeBuffer();
+}
+
+/* 셀에 값 + wrapText (줄바꿈 보이게) — 기존 폰트/배경/테두리 보존 */
+function setCellWrap(ws, addr, value){
+  const cell = ws.getCell(addr);
+  cell.value = value || '';
+  /* 기존 alignment 유지하되 wrapText만 켜기 */
+  const prev = cell.alignment || {};
+  cell.alignment = { ...prev, wrapText: true, vertical: prev.vertical || 'middle' };
+}
+
+function downloadXlsx(arrayBuffer, filename){
+  const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
 /* Word용 — 텍스트 + 첨부파일까지 모두 복호화 (이미지는 dataURL로) */
 async function getSubmissionFullForExport(id){
   const ctx = cards.get(id);
   /* 카드에 이미 복호화된 결과가 있으면 재사용 */
   if(ctx && ctx.item && ctx.decrypted){
-    const files = await Promise.all((ctx.decrypted.files||[]).map(async f => ({
-      docKey: f.docKey, name: f.name, mime: f.mime, size: f.size,
-      dataUrl: await blobToDataURL(f.blob)
-    })));
+    const files = await Promise.all((ctx.decrypted.files||[]).map(async f => {
+      const dataUrl = await blobToCompressedDataURL(f.blob);
+      return {
+        docKey: f.docKey, name: f.name, mime: f.mime, size: f.size,
+        compressedSize: estimateDataUrlBytes(dataUrl),
+        dataUrl
+      };
+    }));
     return { item: ctx.item, sensitive: ctx.decrypted.sensitive, files };
   }
   /* 없으면 새로 가져와 복호화 */
@@ -1130,10 +1352,57 @@ async function getSubmissionFullForExport(id){
   for(const f of (enc.files||[])){
     const buf = await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64ToBytes(f.iv) }, aesKey, b64ToBytes(f.data));
     const blob = new Blob([buf], { type:f.mime || 'application/octet-stream' });
-    const dataUrl = await blobToDataURL(blob);
-    files.push({ docKey:f.docKey, name:f.name, mime:f.mime, size:f.size, dataUrl });
+    const dataUrl = await blobToCompressedDataURL(blob);
+    files.push({
+      docKey:f.docKey, name:f.name, mime:f.mime, size:f.size,
+      compressedSize: estimateDataUrlBytes(dataUrl),
+      dataUrl
+    });
   }
   return { item, sensitive, files };
+}
+
+/* base64 dataURL의 대략적인 바이트 수 추정 */
+function estimateDataUrlBytes(dataUrl){
+  if(!dataUrl) return 0;
+  const i = dataUrl.indexOf(',');
+  if(i < 0) return 0;
+  const b64 = dataUrl.slice(i + 1);
+  return Math.floor(b64.length * 3 / 4);
+}
+
+/* Word 보고서용 — 이미지면 리사이즈 + JPEG 재인코딩으로 용량 압축 */
+async function blobToCompressedDataURL(blob, options){
+  options = options || {};
+  const maxDim = options.maxDim || 1400;       /* 긴 변 픽셀 한도 */
+  const quality = options.quality || 0.78;     /* JPEG 품질 0~1 */
+  const skipUnder = options.skipUnder || 150 * 1024;  /* 150KB 미만이면 그대로 */
+
+  /* 이미지 아니거나 작은 파일 → 그대로 */
+  if(!blob || !(blob.type || '').startsWith('image/')) return blobToDataURL(blob);
+  if(blob.size && blob.size < skipUnder) return blobToDataURL(blob);
+
+  try {
+    const bitmap = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    let w = bitmap.width, h = bitmap.height;
+    if(w > maxDim || h > maxDim){
+      const r = Math.min(maxDim / w, maxDim / h);
+      w = Math.round(w * r); h = Math.round(h * r);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    /* 흰 배경 (PNG 투명 → JPEG 변환 시 검정 방지) */
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    if(bitmap.close) bitmap.close();
+    return canvas.toDataURL('image/jpeg', quality);
+  } catch (err){
+    /* 디코딩 실패 (HEIC 등) — 원본 그대로 폴백 */
+    console.warn('[Word 압축 실패, 원본 사용]', blob.type, err);
+    return blobToDataURL(blob);
+  }
 }
 
 function blobToDataURL(blob){
@@ -1235,7 +1504,7 @@ function buildOneReportPage(item, dec, files){
     <td class="label">전화</td>
     <td>${e(pd.phone)}</td>
     <td class="label">신고유형</td>
-    <td>신고대리</td>
+    <td>신고대리 (${pd.userType === 'new' ? '신규' : (pd.userType === 'existing' ? '기존' : '-')})</td>
   </tr>
   <tr>
     <td class="label">수수료 측정</td>
@@ -1286,7 +1555,9 @@ function buildAttachmentPage(item, f){
   const isImg = (f.mime || '').startsWith('image/');
   const isPdf = (f.mime || '') === 'application/pdf';
   const e = (v) => escapeHtml(v == null ? '' : String(v));
-  const sizeKB = ((f.size || 0) / 1024).toFixed(0);
+  const origKB = ((f.size || 0) / 1024).toFixed(0);
+  const compKB = f.compressedSize ? (f.compressedSize / 1024).toFixed(0) : null;
+  const sizeKB = (compKB && compKB !== origKB) ? `원본 ${origKB}KB → 보고서 임베드 ${compKB}KB` : `${origKB}KB`;
 
   let body;
   if(isImg && f.dataUrl){
@@ -1386,6 +1657,7 @@ function buildExportRow(item, dec){
     '접수일시': fmtDate(item.submitted_at),
     '만료일': fmtDate(item.expires_at),
     '상태': statusLabel(item.status || 'pending'),
+    '이용유형': pd.userType === 'new' ? '신규' : (pd.userType === 'existing' ? '기존' : ''),
     '신고대상자': pd.targetName || '',
     '의뢰자': pd.requesterName || '',
     '연락처': pd.phone || '',
@@ -1609,6 +1881,9 @@ function bytesToB64Local(bytes){
 function bizTypeLabel(b){
   return ({self:'일반',free:'프리랜서',rent:'부동산임대',etc:'그외'})[b] || b || '-';
 }
+function userTypeLabel(v){
+  return v === 'new' ? '✨ 신규' : (v === 'existing' ? '🔁 기존' : '-');
+}
 function income7000Label(v){
   return ({high:'7천만↑',low:'7천만↓'})[v] || '';
 }
@@ -1730,6 +2005,10 @@ $('#btnUnlock').addEventListener('click', async () => {
     if(pendingWordExport){
       pendingWordExport = false;
       await runWordExport();
+    }
+    if(pendingXlsxExport){
+      pendingXlsxExport = false;
+      await runXlsxExport();
     }
   }catch(err){
     $('#decryptErr').textContent = err.message;
