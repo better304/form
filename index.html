@@ -238,6 +238,28 @@
   .tally-row .tally-won{font-size:12px;color:#666;font-weight:600}
   .tally-row .tally-del{padding:4px 8px;border:none;background:transparent;color:#999;font-size:14px;cursor:pointer;border-radius:4px}
   .tally-row .tally-del:hover{background:#FEE;color:#D33}
+  /* 선택 자료 점진적 추가 UI */
+  .opt-progressive{margin-top:18px;padding:14px;background:#F4F8EC;border:1px solid #D5DFC4;border-radius:12px}
+  .opt-progressive-head{margin-bottom:12px}
+  .opt-progressive-head .opt-head-label{font-weight:700;color:#2D5F3F;font-size:14px}
+  .opt-progressive-head .opt-head-sub{display:block;font-size:11.5px;color:#888;font-weight:500;margin-top:2px}
+  .opt-added{display:flex;flex-direction:column;gap:10px}
+  .opt-added:empty{display:none}
+  .opt-item-wrap{position:relative;background:#fff;border-radius:10px}
+  .opt-item-wrap .opt-remove-btn{position:absolute;top:6px;right:6px;z-index:2;width:24px;height:24px;border:none;background:#FAFAFA;color:#999;font-size:13px;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all .12s}
+  .opt-item-wrap .opt-remove-btn:hover{background:#FEE;color:#D33}
+  .opt-item-wrap .doc-item{margin-bottom:0}
+  .opt-menu-wrap{margin-top:10px}
+  .opt-menu-wrap:empty{margin-top:0}
+  .opt-add-menu{background:#fff;border:1.5px dashed var(--green-500);border-radius:10px;overflow:hidden}
+  .opt-add-trigger{cursor:pointer;list-style:none;padding:11px 14px;text-align:center;font-weight:700;font-size:13px;color:var(--green-700);transition:background .12s}
+  .opt-add-trigger::-webkit-details-marker{display:none}
+  .opt-add-trigger:hover{background:var(--green-100)}
+  .opt-add-menu[open] .opt-add-trigger{border-bottom:1px solid #E5E8DD;background:var(--green-100)}
+  .opt-menu-body{padding:6px;display:flex;flex-direction:column;gap:4px}
+  .opt-menu-item{padding:10px 12px;border:1px solid #EAEAEA;background:#fff;border-radius:8px;text-align:left;font-size:13px;color:var(--ink-700);cursor:pointer;transition:all .12s;font-family:inherit}
+  .opt-menu-item:hover{background:#F0F7EA;border-color:var(--green-500);color:var(--green-700);font-weight:600}
+  .opt-all-added{margin:0;padding:11px;text-align:center;font-size:12.5px;color:#666;background:#fff;border:1px dashed #CCC;border-radius:10px}
   .doc-item .dhow a{text-decoration:underline}
   .file-field{border:1.5px dashed var(--ink-300);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--ink-500);background:#FAFBF7;cursor:pointer;position:relative;white-space:nowrap}
   .file-field input{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -1206,16 +1228,19 @@ function renderDocList(){
     reqs.forEach(d => out.push(renderDocEntry(d, true)));
   }
 
-  /* ── 기타 서류 (선택, 기본 펼침 - 부동산은 절세를 위한 자료라 강조) ── */
+  /* ── 선택 자료 (점진적 추가) ── */
   if(opts.length > 0){
-    const summaryLabel = (reqs.length === 0)
-      ? '📋 절세를 위해 도움되는 자료 <span style="font-weight:500;color:#888;font-size:11px">(선택)</span>'
-      : '📋 있으면 좋은 자료 <span style="font-weight:500;color:#888;font-size:11px">(선택 · 클릭하여 펼치기)</span>';
-    /* 필수 자료가 없는 업종(부동산, 일반사업자 등)은 기본 펼침 */
-    const openAttr = (reqs.length === 0) ? ' open' : '';
-    out.push(`<details class="doc-optional"${openAttr}><summary>${summaryLabel}</summary><div class="doc-optional-body">`);
-    opts.forEach(d => out.push(renderDocEntry(d, false)));
-    out.push('</div></details>');
+    const headerLabel = (reqs.length === 0)
+      ? '📋 절세를 위해 도움되는 자료'
+      : '📋 있으면 좋은 자료';
+    out.push(`<div class="opt-progressive">
+      <div class="opt-progressive-head">
+        <span class="opt-head-label">${headerLabel}</span>
+        <span class="opt-head-sub">(선택 · 추가하실 항목만 노출)</span>
+      </div>
+      <div class="opt-added" id="optAdded"></div>
+      <div class="opt-menu-wrap" id="optMenuWrap"></div>
+    </div>`);
   }
 
   if(reqs.length === 0 && opts.length === 0){
@@ -1223,31 +1248,106 @@ function renderDocList(){
   }
 
   $('#docList').innerHTML = out.join('');
+  /* 핸들러는 위임 방식 — 아래 ─ 위임 이벤트 ─ 영역에서 처리 (동적 추가 항목도 자동 작동) */
 
-  /* 파일 변경 핸들러 */
-  $$('#docList input[type=file]').forEach(inp=>{
-    inp.addEventListener('change',()=>{
-      const k = inp.dataset.doc;
-      const target = $(`[data-list="${k}"]`);
-      if(target){
-        target.innerHTML = Array.from(inp.files).map(f=>`<div>📄 ${f.name} <span style="color:var(--ink-500)">${(f.size/1024).toFixed(0)}KB</span></div>`).join('');
-      }
-      inp.closest('.file-field').classList.toggle('has', inp.files.length>0);
-    });
-  });
-
-  /* tally(합계 다중 행) 핸들러 — + 추가 */
-  $$('#docList [data-tally-add]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.tallyAdd;
-      const box = $(`[data-tally-rows="${key}"]`);
-      if(!box) return;
-      let examples = [];
-      try { examples = JSON.parse(box.dataset.tallyExamples || '[]'); } catch(e) {}
-      box.insertAdjacentHTML('beforeend', renderTallyRow(examples));
-    });
-  });
+  /* 선택 자료 점진적 추가 — 상태 초기화 + 메뉴 렌더 */
+  addedOptKeys = new Set();
+  refreshOptMenu();
 }
+
+/* 선택 자료 점진적 추가 — 상태 */
+let addedOptKeys = new Set();
+
+function findDocDefByKey(k){
+  for(const v of Object.values(DOC_DEFS)){
+    if(v.k === k) return v;
+  }
+  return null;
+}
+
+function refreshOptMenu(){
+  const wrap = $('#optMenuWrap');
+  if(!wrap) return;
+  const opts = getOptDocs();
+  const available = opts.filter(d => !addedOptKeys.has(d.k));
+  if(available.length === 0){
+    wrap.innerHTML = '<p class="opt-all-added">✓ 가능한 항목을 모두 추가하셨습니다</p>';
+    return;
+  }
+  wrap.innerHTML = `
+    <details class="opt-add-menu">
+      <summary class="opt-add-trigger">+ 항목 추가</summary>
+      <div class="opt-menu-body">
+        ${available.map(d => `<button type="button" class="opt-menu-item" data-add-key="${d.k}">${escapeHtmlSimple(d.name)}</button>`).join('')}
+      </div>
+    </details>`;
+}
+
+function addOptItem(k){
+  if(addedOptKeys.has(k)) return;
+  const d = findDocDefByKey(k);
+  if(!d) return;
+  addedOptKeys.add(k);
+  const container = $('#optAdded');
+  if(!container) return;
+  const html = `
+    <div class="opt-item-wrap" data-opt-key="${d.k}">
+      <button type="button" class="opt-remove-btn" data-remove-key="${d.k}" title="이 항목 제거">✕</button>
+      ${renderDocEntry(d, false)}
+    </div>`;
+  container.insertAdjacentHTML('beforeend', html);
+  refreshOptMenu();
+}
+
+function removeOptItem(k){
+  if(!addedOptKeys.has(k)) return;
+  addedOptKeys.delete(k);
+  const wrap = $(`#optAdded > [data-opt-key="${k}"]`);
+  if(wrap) wrap.remove();
+  refreshOptMenu();
+}
+
+/* 위임 — 메뉴 항목 클릭 (추가) / ✕ 버튼 (제거) */
+document.addEventListener('click', e => {
+  const addBtn = e.target.closest('.opt-menu-item');
+  if(addBtn){
+    const k = addBtn.dataset.addKey;
+    addOptItem(k);
+    /* 메뉴 자동 닫기 */
+    const menu = addBtn.closest('details.opt-add-menu');
+    if(menu) menu.removeAttribute('open');
+    return;
+  }
+  const rm = e.target.closest('.opt-remove-btn');
+  if(rm){
+    removeOptItem(rm.dataset.removeKey);
+  }
+});
+
+/* ─ 위임 이벤트: docList 내 파일/tally — 동적으로 추가되는 요소도 자동 작동 ─ */
+document.addEventListener('change', e => {
+  const inp = e.target;
+  if(inp.matches && inp.matches('#docList input[type=file]')){
+    const k = inp.dataset.doc;
+    const target = $(`[data-list="${k}"]`);
+    if(target){
+      target.innerHTML = Array.from(inp.files).map(f=>`<div>📄 ${f.name} <span style="color:var(--ink-500)">${(f.size/1024).toFixed(0)}KB</span></div>`).join('');
+    }
+    const ff = inp.closest('.file-field');
+    if(ff) ff.classList.toggle('has', inp.files.length>0);
+  }
+});
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-tally-add]');
+  if(btn){
+    const key = btn.dataset.tallyAdd;
+    const box = $(`[data-tally-rows="${key}"]`);
+    if(!box) return;
+    let examples = [];
+    try { examples = JSON.parse(box.dataset.tallyExamples || '[]'); } catch(e) {}
+    box.insertAdjacentHTML('beforeend', renderTallyRow(examples));
+  }
+});
 
 /* 한 줄 row HTML — 예시 있으면 select, 없으면 직접 입력 텍스트 */
 function renderTallyRow(examples){
