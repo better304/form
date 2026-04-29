@@ -217,6 +217,8 @@
   .doc-item .dhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
   .doc-item .dname{font-weight:700;font-size:14px}
   .doc-item .dhow{font-size:12px;color:var(--green-700);margin-top:6px;background:var(--green-100);padding:8px;border-radius:6px}
+  .doc-item .doc-help-link{display:inline-block;margin-top:8px;font-size:12px;color:#03C75A;font-weight:600;text-decoration:none;padding:4px 0}
+  .doc-item .doc-help-link:hover{color:#02A549;text-decoration:underline}
   .doc-item .dhow a{text-decoration:underline}
   .file-field{border:1.5px dashed var(--ink-300);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--ink-500);background:#FAFBF7;cursor:pointer;position:relative;white-space:nowrap}
   .file-field input{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -1095,10 +1097,13 @@ $('#addDep').addEventListener('click',()=>{
 /* ═════════ 업종별 서류 (동적 계산) ═════════ */
 /* 자료 정의 (재사용 가능한 빌딩 블록) */
 const DOC_DEFS = {
-  yrend:        { type:'file', k:'yrend',  name:'연말정산 간소화자료', how:'<a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스</a> → 편리한 연말정산 → 자료조회' },
+  yrend:        { type:'file', k:'yrend',  name:'연말정산 간소화자료',
+                  helpLink:'https://blog.naver.com/better304/224267923868', helpText:'연말정산 간소화자료 받는 법' },
   bankAccount:  { type:'text', k:'bankAccount', name:'환급 받을 계좌', placeholder:'예) 농협 / 123-456-7890 / 홍길동' },
-  taxNotice:    { type:'file', k:'taxNotice', name:'종합소득세 신고안내문', how:'홈택스 → 신고/납부 → 종합소득세 신고안내자료 조회' },
-  incomeProof:  { type:'file', k:'incomeProof', name:'각 소득에 대한 증빙서류', how:'지급명세서, 근로소득원천징수영수증 등' },
+  taxNotice:    { type:'file', k:'taxNotice', name:'종합소득세 신고안내문',
+                  helpLink:'https://blog.naver.com/better304/224269360646', helpText:'종합소득세 신고안내문·소득 증빙서류 받는 법' },
+  incomeProof:  { type:'file', k:'incomeProof', name:'각 소득에 대한 증빙서류',
+                  helpLink:'https://blog.naver.com/better304/224269360646', helpText:'종합소득세 신고안내문·소득 증빙서류 받는 법' },
   /* 일반사업자 옵션 */
   fixedCost:    { type:'text',  k:'amount_fixedCost',    name:'2025년 사업장 고정비 합계', placeholder:'ex) 전기료, 가스료, 통신비, 인터넷 등' },
   autoCost:     { type:'text',  k:'amount_autoCost',     name:'2025년 자동차 관련 경비 합계', placeholder:'ex) 리스료, 유류비, 통행비 등' },
@@ -1109,7 +1114,8 @@ const DOC_DEFS = {
   /* 프리랜서 옵션 */
   telecom:      { type:'text',  k:'amount_telecom',  name:'2025년 통신비 합계', placeholder:'고정비 합계로 연결해주시면 됩니다' },
   /* 부동산 임대 옵션 */
-  localTax:     { type:'file',  k:'localTax',            name:'지방세 세목별 과세증명서', how:'<a href="https://www.gov.kr/" target="_blank" rel="noopener">정부24</a>에서 무료 발급' },
+  localTax:     { type:'file',  k:'localTax',            name:'지방세 세목별 과세증명서',
+                  helpLink:'https://blog.naver.com/better304/224267935869', helpText:'지방세 세목별 과세증명서 받는 법' },
   propertyLoan: { type:'text',  k:'amount_propertyLoan', name:'부동산 취득 관련 대출이자 내역', placeholder:'부동산 취득을 위해 받은 대출의 이자' },
   miscRental:   { type:'mixed', k:'misc_rental',         name:'그외 사업 관련 경비', placeholder:'ex) 수선비, 중개수수료' }
 };
@@ -1201,6 +1207,9 @@ function renderDocList(){
 
 function renderDocEntry(d, required){
   const star = required ? '<span class="req">*</span> ' : '';
+  const helpLink = d.helpLink
+    ? `<a href="${d.helpLink}" target="_blank" rel="noopener" class="doc-help-link">📖 ${d.helpText || '받는 법 보러가기'} →</a>`
+    : '';
   if(d.type === 'file'){
     return `
     <div class="doc-item">
@@ -1212,6 +1221,7 @@ function renderDocEntry(d, required){
         </label>
       </div>
       <div class="file-list" data-list="${d.k}"></div>
+      ${helpLink}
     </div>`;
   }
   if(d.type === 'text'){
@@ -1219,6 +1229,7 @@ function renderDocEntry(d, required){
     <div class="doc-item doc-text">
       <div class="dname">${star}${d.name}</div>
       <input type="text" class="doc-text-input" data-amount="${d.k}" placeholder="${d.placeholder||''}" />
+      ${helpLink}
     </div>`;
   }
   if(d.type === 'mixed'){
@@ -1233,6 +1244,7 @@ function renderDocEntry(d, required){
       </div>
       <textarea class="doc-text-input" data-amount="${d.k}" placeholder="${d.placeholder ? d.placeholder + ' — 또는 자유 입력' : '자유 입력'}" rows="2"></textarea>
       <div class="file-list" data-list="${d.k}"></div>
+      ${helpLink}
     </div>`;
   }
   return '';
