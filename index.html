@@ -118,10 +118,10 @@
   .form-step{display:none}
   .form-step.active{display:block;animation:fadeIn .25s}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .step-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:13.5px;color:var(--ink-500);font-weight:600}
-  .step-head .step-pos{display:inline-flex;align-items:center;gap:2px;padding:5px 12px;background:linear-gradient(180deg,transparent 35%,#FFF59E 35%,#FFE873 95%,transparent 95%);border-radius:4px;font-size:14px;color:#1A1A1A;font-weight:700;letter-spacing:.3px}
-  .step-head .step-pos strong{color:#C2410C;font-weight:900;font-size:18px;margin-right:1px}
-  .step-head > span:last-child{color:var(--green-700);font-weight:700;font-size:13px}
+  .step-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:14px;color:#1A1A1A;font-weight:800}
+  .step-head .step-pos{font-size:14px;color:#1A1A1A;font-weight:800}
+  .step-head .step-pos strong{color:var(--green-700);font-weight:900}
+  .step-head > span:last-child{color:var(--green-700);font-weight:800;font-size:14px}
   .step-title{font-size:17px;font-weight:700;margin-bottom:12px}
   .field{margin-bottom:14px}
   .field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:var(--ink-700)}
@@ -153,6 +153,7 @@
   .user-type-card.selected{border-color:#2D5F3F;background:#F0F7EA}
   .user-type-card .uc-title{font-size:16px;font-weight:800;margin-bottom:4px}
   .user-type-card .uc-desc{font-size:12.5px;color:#666;font-weight:500}
+  .user-type-card .uc-note{font-size:12.5px;color:#C2410C;font-weight:800;margin-top:6px}
   .same-requester{display:flex;gap:14px;margin:6px 0 10px}
   .same-requester label{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600}
   .differs-fields{display:none;padding:12px;background:#FFF8E6;border-left:3px solid #E89A00;border-radius:8px;margin-bottom:14px}
@@ -438,11 +439,12 @@
         <div class="step-title">어떤 분이세요?</div>
         <button type="button" class="user-type-card" data-utype="new">
           <div class="uc-title">✨ 신규 신고대리</div>
-          <div class="uc-desc">본 사무소에 신고대리를 처음 맡기시는 분</div>
+          <div class="uc-desc">작년에 본 사무소에 신고대리를 맡기지 않으신 분</div>
+          <div class="uc-note">(홈택스 아이디, 비번 미리 준비해 주세요)</div>
         </button>
         <button type="button" class="user-type-card" data-utype="existing">
           <div class="uc-title">🔁 기존 신고대리</div>
-          <div class="uc-desc">이전에 맡기신 적 있는 분</div>
+          <div class="uc-desc">작년에 본 사무소에 신고를 맡기신 분</div>
         </button>
         <input type="hidden" name="userType" />
       </div>
@@ -1258,7 +1260,7 @@ function renderDocList(){
     out.push(`<div class="opt-progressive">
       <div class="opt-progressive-head">
         <span class="opt-head-label">${headerLabel}</span>
-        <span class="opt-head-sub">(선택 · 추가하실 항목만 노출)</span>
+        <span class="opt-head-sub">(필수 서류는 아닙니다)</span>
       </div>
       <div class="opt-added" id="optAdded"></div>
       <div class="opt-menu-wrap" id="optMenuWrap"></div>
