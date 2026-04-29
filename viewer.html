@@ -57,6 +57,24 @@
   .toolbar input[type="search"]{flex:1;min-width:180px;padding:9px 12px;border:1.5px solid #BFBFBF;border-radius:8px;font-size:14px}
   .toolbar input:focus{outline:none;border-color:#2D5F3F}
   .toolbar .stat{font-size:12px;color:#666;margin-right:auto}
+  /* 상태 집계 패널 */
+  .status-summary{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:#fff;border:1px solid #EAEAEA;border-radius:10px;padding:11px 16px;margin-bottom:14px;font-size:13px}
+  .status-summary .ss-item{display:inline-flex;align-items:center;gap:6px;color:#444}
+  .status-summary .ss-item strong{font-size:16px;font-weight:800;color:#1A1A1A;margin:0 2px}
+  .status-summary .ss-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .status-summary .ss-pending .ss-dot{background:#E8A82C}
+  .status-summary .ss-completed .ss-dot{background:#4E8B3A}
+  .status-summary .ss-filed .ss-dot{background:#2F6FB8}
+  .status-summary .ss-canceled .ss-dot{background:#888}
+  .status-summary .ss-divider{width:1px;height:20px;background:#DDD}
+  .status-summary .ss-total{margin-left:auto;color:#2D5F3F;font-weight:700}
+  .status-summary .ss-total strong{color:#2D5F3F;font-size:18px}
+  /* 인라인 편집 필드 */
+  .status-select{padding:5px 6px;border:1.5px solid #BFBFBF;border-radius:6px;background:#fff;font-size:12px;font-family:inherit;cursor:pointer;min-width:104px}
+  .status-select:focus{outline:none;border-color:#2D5F3F}
+  .admin-input{width:100%;min-width:80px;padding:5px 7px;border:1.5px solid #DDD;border-radius:6px;font-size:12px;background:#fff;font-family:inherit}
+  .admin-input.admin-memo{min-width:140px}
+  .admin-input:focus{outline:none;border-color:#2D5F3F;background:#FFFEF5}
 
   .list-card{background:#fff;border:1px solid #EAEAEA;border-radius:10px;overflow:hidden}
   table{width:100%;border-collapse:collapse}
@@ -187,7 +205,17 @@
     <div class="toolbar">
       <input type="search" id="search" placeholder="이름·연락처·업종 검색…" autocomplete="off" />
       <span class="stat" id="stat"></span>
+      <button class="btn sm" id="btnDashXlsx" style="background:#5B2C7E;color:#fff" title="대시보드(상태·수수료·부가세·메모) 엑셀 다운로드">📋 대시보드 엑셀</button>
       <button class="btn ghost sm" id="btnRefresh">↻ 새로고침</button>
+    </div>
+    <!-- 상태 집계 -->
+    <div class="status-summary" id="statusSummary">
+      <span class="ss-item ss-pending"><span class="ss-dot"></span>대기 <strong id="ssPending">0</strong>명</span>
+      <span class="ss-item ss-completed"><span class="ss-dot"></span>출력완료 <strong id="ssCompleted">0</strong>명</span>
+      <span class="ss-item ss-filed"><span class="ss-dot"></span>신고완료 <strong id="ssFiled">0</strong>명</span>
+      <span class="ss-item ss-canceled"><span class="ss-dot"></span>접수취소 <strong id="ssCanceled">0</strong>명</span>
+      <span class="ss-divider"></span>
+      <span class="ss-item ss-total">총 <strong id="ssTotal">0</strong>명</span>
     </div>
     <div class="bulk-bar" id="bulkBar">
       <span class="count" id="bulkCount">0건 선택</span>
@@ -209,6 +237,9 @@
             <th>업종</th>
             <th>유형</th>
             <th>상태</th>
+            <th>수수료</th>
+            <th>부가가치세</th>
+            <th>메모</th>
             <th>만료</th>
           </tr>
         </thead>
@@ -510,6 +541,11 @@ function renderList(){
   $('#rows').innerHTML = filtered.map(it => {
     const status = it.status || 'pending';
     const checked = state.selected.has(it.id) ? 'checked' : '';
+    const opts = statusOptions().map(o =>
+      `<option value="${o.v}" ${o.v === status ? 'selected' : ''}>${o.label}</option>`).join('');
+    const adminFee  = it.admin_fee  || '';
+    const adminVat  = it.admin_vat  || '';
+    const adminMemo = it.admin_memo || '';
     return `<tr class="row" data-id="${escapeHtml(it.id)}">
       <td class="col-check"><input type="checkbox" class="checkbox row-check" data-id="${escapeHtml(it.id)}" ${checked} /></td>
       <td>${escapeHtml(fmtDate(it.submitted_at))}</td>
@@ -517,24 +553,49 @@ function renderList(){
       <td>${escapeHtml(it.phone||'-')}</td>
       <td>${escapeHtml(bizTypeLabel(it.bizType))}</td>
       <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
-      <td><span class="pill ${status} status-toggle" data-id="${escapeHtml(it.id)}" title="클릭하여 상태 토글">${statusLabel(status)}</span></td>
+      <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
+      <td><input type="text" class="admin-input admin-fee" data-id="${escapeHtml(it.id)}" data-field="admin_fee" value="${escapeHtml(adminFee)}" placeholder="수수료" /></td>
+      <td><input type="text" class="admin-input admin-vat" data-id="${escapeHtml(it.id)}" data-field="admin_vat" value="${escapeHtml(adminVat)}" placeholder="부가세" /></td>
+      <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
       <td style="font-size:11px;color:#888">${escapeHtml(fmtDate(it.expires_at))}</td>
     </tr>`;
   }).join('');
 
-  /* 행 클릭(체크박스/상태뱃지 영역 제외) → 인라인 카드 펼침/접기 토글 */
+  /* 행 클릭(체크박스/관리 입력/상태 셀 제외) → 인라인 카드 펼침/접기 토글 */
   $$('.row').forEach(tr => tr.addEventListener('click', e => {
     if(e.target.closest('.col-check')) return;
-    if(e.target.closest('.status-toggle')) return; /* 뱃지는 토글 전용 */
+    if(e.target.closest('.status-select')) return;
+    if(e.target.closest('.admin-input')) return;
     const id = tr.dataset.id;
     if(cards.has(id)) collapseCard(id);
     else expandCard(id);
   }));
-  /* 상태 뱃지 클릭 → 즉시 토글 (optimistic) */
-  $$('.status-toggle').forEach(pill => pill.addEventListener('click', e => {
-    e.stopPropagation();
-    toggleItemStatus(pill.dataset.id);
-  }));
+  /* 상태 드롭다운 변경 — optimistic UI */
+  $$('.status-select').forEach(sel => {
+    sel.addEventListener('click', e => e.stopPropagation());
+    sel.addEventListener('change', async e => {
+      e.stopPropagation();
+      const id = sel.dataset.id;
+      const oldVal = sel.dataset.old;
+      const newVal = sel.value;
+      if(oldVal === newVal) return;
+      await updateItemStatus(id, newVal, oldVal);
+    });
+  });
+  /* 관리 필드 (수수료/부가세/메모) — blur/Enter 저장 */
+  $$('.admin-input').forEach(inp => {
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){ e.preventDefault(); inp.blur(); }
+    });
+    inp.addEventListener('change', async e => {
+      e.stopPropagation();
+      const id = inp.dataset.id;
+      const field = inp.dataset.field;
+      const value = inp.value;
+      await updateItemAdminField(id, field, value);
+    });
+  });
   /* 체크박스 토글 */
   $$('.row-check').forEach(cb => cb.addEventListener('change', e => {
     e.stopPropagation();
@@ -546,6 +607,7 @@ function renderList(){
   }));
   syncCheckAll();
   updateBulkBar();
+  refreshStatusSummary();
 }
 
 function updateBulkBar(){
@@ -564,6 +626,22 @@ function syncCheckAll(){
   const checkedCount = all.filter(c => c.checked).length;
   ca.checked = checkedCount === all.length;
   ca.indeterminate = checkedCount > 0 && checkedCount < all.length;
+}
+
+/* 상태 집계 카운터 — items 배열 기준 */
+function refreshStatusSummary(){
+  const counts = { pending:0, completed:0, filed:0, canceled:0 };
+  for(const it of state.items){
+    const s = it.status || 'pending';
+    if(counts[s] !== undefined) counts[s]++;
+  }
+  const total = state.items.length;
+  const set = (id, v) => { const el = $(id); if(el) el.textContent = v; };
+  set('#ssPending',   counts.pending);
+  set('#ssCompleted', counts.completed);
+  set('#ssFiled',     counts.filed);
+  set('#ssCanceled',  counts.canceled);
+  set('#ssTotal',     total);
 }
 
 /* ════════════════════════════════════════════════════
@@ -1929,23 +2007,33 @@ function hasDepsLabel(v){
   return v === 'yes' ? '있음' : (v === 'no' ? '없음' : '');
 }
 function statusLabel(s){
-  return ({pending:'🟡 대기', completed:'🟢 출력완료'})[s] || s || '-';
+  return ({
+    pending:   '🟡 대기',
+    completed: '🟢 출력완료',
+    filed:     '🔵 신고완료',
+    canceled:  '⚫ 접수취소'
+  })[s] || s || '-';
+}
+function statusOptions(){
+  return [
+    { v:'pending',   label:'🟡 대기' },
+    { v:'completed', label:'🟢 출력완료' },
+    { v:'filed',     label:'🔵 신고완료' },
+    { v:'canceled',  label:'⚫ 접수취소' }
+  ];
 }
 
-/* 상태 즉시 토글 — optimistic UI (네트워크 응답 안 기다림) */
-async function toggleItemStatus(id){
+/* 상태 변경 — optimistic UI */
+async function updateItemStatus(id, newStatus, oldStatus){
   const li = state.items.find(it => it.id === id);
   if(!li){ return; }
-  const oldStatus = li.status || 'pending';
-  const newStatus = oldStatus === 'completed' ? 'pending' : 'completed';
 
-  /* 1. 화면 즉시 갱신 */
+  /* 즉시 갱신 + 집계 */
   li.status = newStatus;
   const ctx = cards.get(id);
   if(ctx && ctx.item) ctx.item.status = newStatus;
-  renderList();
+  refreshStatusSummary();
 
-  /* 2. 백그라운드로 서버 반영 */
   try{
     await api(`/api/item/${id}`, {
       method: 'PATCH',
@@ -1953,11 +2041,31 @@ async function toggleItemStatus(id){
     });
     toast(`✓ ${statusLabel(newStatus)}로 변경`, 1500);
   }catch(err){
-    /* 실패 시 롤백 */
     li.status = oldStatus;
     if(ctx && ctx.item) ctx.item.status = oldStatus;
     renderList();
     toast('상태 변경 실패: ' + err.message, 4000);
+  }
+}
+
+/* 관리 필드 (수수료/부가세/메모) 저장 — debounce 없이 blur/Enter 시 즉시 */
+async function updateItemAdminField(id, field, value){
+  const li = state.items.find(it => it.id === id);
+  if(!li){ return; }
+  const oldVal = li[field] || '';
+  if(oldVal === value) return;
+
+  li[field] = value;
+  try{
+    await api(`/api/item/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ [field]: value })
+    });
+    toast(`✓ 저장됨`, 1200);
+  }catch(err){
+    li[field] = oldVal;
+    renderList();
+    toast(`저장 실패: ${err.message}`, 4000);
   }
 }
 function formatDeps(arr){
@@ -2088,6 +2196,67 @@ document.addEventListener('keydown', e => {
  * ════════════════════════════════════════════════════ */
 $('#search').addEventListener('input', () => renderList());
 $('#btnRefresh').addEventListener('click', () => loadList());
+
+/* 대시보드 엑셀 — 관리자용 (상태·수수료·부가세·메모 포함, 민감정보 없음) */
+$('#btnDashXlsx').addEventListener('click', async () => {
+  if(!state.items || state.items.length === 0){
+    toast('표시할 항목이 없습니다', 3000); return;
+  }
+  if(typeof ExcelJS === 'undefined'){
+    toast('ExcelJS 로드 실패. 새로고침 후 재시도', 4000); return;
+  }
+  try{
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('대시보드');
+    /* 헤더 */
+    const headers = ['접수일','신고대상자','연락처','업종','유형','상태','수수료','부가가치세','메모','만료일'];
+    ws.addRow(headers);
+    const headerRow = ws.getRow(1);
+    headerRow.font = { bold:true, color:{argb:'FFFFFFFF'} };
+    headerRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2D5F3F'} };
+    headerRow.alignment = { vertical:'middle', horizontal:'center' };
+    headerRow.height = 24;
+    /* 데이터 */
+    for(const it of state.items){
+      const userTxt = it.userType === 'new' ? '신규' : (it.userType === 'existing' ? '기존' : '');
+      const statusTxt = ({pending:'대기',completed:'출력완료',filed:'신고완료',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
+      const row = ws.addRow([
+        fmtDate(it.submitted_at),
+        it.target_name || '',
+        it.phone || '',
+        bizTypeLabel(it.bizType),
+        userTxt,
+        statusTxt,
+        it.admin_fee || '',
+        it.admin_vat || '',
+        it.admin_memo || '',
+        fmtDate(it.expires_at)
+      ]);
+      row.alignment = { vertical:'middle', wrapText:true };
+    }
+    /* 컬럼 너비 */
+    const widths = [18, 14, 14, 12, 8, 12, 14, 14, 30, 18];
+    widths.forEach((w, i) => { ws.getColumn(i+1).width = w; });
+    /* 집계 (하단) */
+    const counts = { pending:0, completed:0, filed:0, canceled:0 };
+    for(const it of state.items){ const s = it.status || 'pending'; if(counts[s] !== undefined) counts[s]++; }
+    ws.addRow([]);
+    const summaryRow = ws.addRow([
+      `대기 ${counts.pending}명 · 출력완료 ${counts.completed}명 · 신고완료 ${counts.filed}명 · 접수취소 ${counts.canceled}명`,
+      '', '', '', '', `총 ${state.items.length}명`
+    ]);
+    summaryRow.font = { bold:true };
+    summaryRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF4F8EC'} };
+    /* 출력 */
+    const buf = await wb.xlsx.writeBuffer();
+    const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    downloadXlsx(buf, `대시보드_${ymd}.xlsx`);
+    toast(`✓ 대시보드 ${state.items.length}건 다운로드 완료`, 3000);
+  }catch(err){
+    console.error('Dashboard export failed:', err);
+    toast(`다운로드 실패: ${err.message}`, 5000);
+  }
+});
 $('#btnLogout').addEventListener('click', () => forceLogout());
 $('#btnLogin').addEventListener('click', doLogin);
 $('#pwd').addEventListener('keypress', e => { if(e.key === 'Enter') doLogin(); });
