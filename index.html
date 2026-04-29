@@ -173,6 +173,17 @@
   .pwd-wrap{position:relative}
   .pwd-wrap .eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;color:var(--ink-500);font-size:12px;padding:4px}
 
+  /* 부양가족 토글 */
+  .dep-toggle{display:flex;gap:8px;margin-top:6px}
+  .dep-toggle label{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 14px;border:1.5px solid var(--ink-300);border-radius:10px;cursor:pointer;background:#fff;transition:all .12s;font-size:14px}
+  .dep-toggle label:has(input:checked){border-color:var(--green-500);background:var(--green-100);color:var(--green-700);font-weight:700}
+  .dep-section{padding:14px;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:12px;margin-bottom:14px}
+  .dep-section .field{margin-bottom:0}
+  .dep-fields{margin-top:14px;padding-top:14px;border-top:1px dashed #D5D9CF}
+  /* 프리랜서 매출 라디오 */
+  .freelancer-income .income-radio{display:flex;flex-direction:column;gap:8px}
+  .freelancer-income .income-radio label{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--ink-300);border-radius:10px;cursor:pointer;background:#fff;transition:all .12s;font-size:14px}
+  .freelancer-income .income-radio label:has(input:checked){border-color:var(--green-500);background:var(--green-100);color:var(--green-700);font-weight:700}
   .dep-block{background:var(--ink-100);border-radius:10px;padding:12px;margin-bottom:8px;position:relative}
   .dep-block .del{position:absolute;top:8px;right:8px;font-size:11px;color:var(--danger)}
   .dep-row{display:grid;grid-template-columns:100px 1fr;gap:8px;margin-bottom:8px}
@@ -361,8 +372,23 @@
       <div class="progress"><div class="progress-bar" id="progBar"></div></div>
       <form id="appForm" autocomplete="off">
 
-      <!-- Step BIZ: 업종 선택 (가장 먼저) -->
-      <div class="form-step active" data-fstep="biz">
+      <!-- Step 0: 이용 유형 (가장 먼저) -->
+      <div class="form-step active" data-fstep="0">
+        <div class="step-head"><span>이용 유형</span><span></span></div>
+        <div class="step-title">어떤 분이세요?</div>
+        <button type="button" class="user-type-card" data-utype="new">
+          <div class="uc-title">✨ 신규 신고대리</div>
+          <div class="uc-desc">본 사무소에 신고대리를 처음 맡기시는 분</div>
+        </button>
+        <button type="button" class="user-type-card" data-utype="existing">
+          <div class="uc-title">🔁 기존 신고대리</div>
+          <div class="uc-desc">이전에 맡기신 적 있는 분</div>
+        </button>
+        <input type="hidden" name="userType" />
+      </div>
+
+      <!-- Step 1: 업종 선택 (+ 프리랜서 매출 분기) -->
+      <div class="form-step" data-fstep="1">
         <div class="step-head"><span>업종 선택</span><span></span></div>
         <div class="step-title">어떤 일을 하고 계세요?</div>
 
@@ -373,6 +399,17 @@
           <button type="button" class="chip" data-v="etc">📋 그외</button>
         </div>
         <input type="hidden" name="bizType" />
+
+        <!-- 프리랜서 선택 시에만 노출 -->
+        <div class="freelancer-income" id="freelancerIncome" style="display:none">
+          <div class="field" style="margin-top:14px">
+            <label>연간 수입 규모 <span class="req">*</span></label>
+            <div class="income-radio">
+              <label><input type="radio" name="income7000" value="high" /> <span>연간 수입 7,000만원 <strong>이상</strong></span></label>
+              <label><input type="radio" name="income7000" value="low" /> <span>연간 수입 7,000만원 <strong>미만</strong></span></label>
+            </div>
+          </div>
+        </div>
 
         <details class="biz-info">
           <summary>❓ 어떤 걸 골라야 할까요?</summary>
@@ -387,41 +424,66 @@
             </p>
           </div>
         </details>
-      </div>
 
-      <!-- Step PREP: 필요 서류 안내 -->
-      <div class="form-step" data-fstep="prep">
-        <div class="step-head"><span>준비물 안내</span><span></span></div>
-        <div class="step-title">먼저 이런 자료들이 필요해요</div>
-        <div class="prep-warn">
-          🚨 <strong>신청서 제출하기 전에 해당 서류를 먼저 준비해 주세요.</strong><br>
-          준비된 후 다음 단계로 이동하시면 더 빠르게 마칠 수 있어요.
-        </div>
-        <div id="prepList" class="prep-list"></div>
         <div class="nav-btns">
           <button type="button" class="btn btn-ghost" data-prev>← 이전</button>
-          <button type="button" class="btn btn-primary" data-next>준비됐어요, 다음 →</button>
+          <button type="button" class="btn btn-primary" data-next>다음 →</button>
         </div>
       </div>
 
-      <!-- Step 0: 이용 유형 -->
-      <div class="form-step" data-fstep="0">
-        <div class="step-head"><span>이용 유형</span><span></span></div>
-        <div class="step-title">어떤 분이세요?</div>
-        <button type="button" class="user-type-card" data-utype="new">
-          <div class="uc-title">✨ 신규 신고대리</div>
-          <div class="uc-desc">본 사무소에 신고대리를 처음 맡기시는 분</div>
-        </button>
-        <button type="button" class="user-type-card" data-utype="existing">
-          <div class="uc-title">🔁 기존 신고대리</div>
-          <div class="uc-desc">이전에 맡기신 적 있는 분</div>
-        </button>
-        <input type="hidden" name="userType" />
+      <!-- Step 2: 자료 입력 (부양가족 + 첨부 서류 통합) -->
+      <div class="form-step" data-fstep="2">
+        <div class="step-head"><span class="step-pos"><strong>1</strong> / 6</span><span>자료 입력</span></div>
+        <div class="step-title">필요 자료를 입력·첨부해 주세요</div>
+
+        <!-- ── 부양가족 (모든 업종 공통) ── -->
+        <div class="dep-section">
+          <div class="field">
+            <label>👨‍👩‍👧 공제받을 부양가족이 있으신가요? <span class="req">*</span></label>
+            <div class="dep-toggle">
+              <label><input type="radio" name="hasDependents" value="no" checked /> <span>없음</span></label>
+              <label><input type="radio" name="hasDependents" value="yes" /> <span>있음</span></label>
+            </div>
+          </div>
+
+          <div class="dep-fields" id="depFields" style="display:none">
+            <details class="dep-help">
+              <summary>❓ 공제받을 부양가족이란?</summary>
+              <div class="dep-help-body">
+                <p style="margin:8px 0 6px;font-weight:600">부양가족으로 인정받으려면 아래 두 가지를 모두 만족해야 해요.</p>
+                <p style="margin:8px 0 4px"><strong>① 나이</strong></p>
+                <ul style="margin:0 0 8px;padding-left:18px">
+                  <li>만 20세 이하 (자녀 등)</li>
+                  <li>또는 만 60세 이상 (부모님 등)</li>
+                </ul>
+                <p style="margin:8px 0 4px"><strong>② 1년 동안 번 돈 (소득)</strong></p>
+                <ul style="margin:0 0 8px;padding-left:18px">
+                  <li>연 100만원 이하</li>
+                  <li>월급만 받으시는 경우 → 연 500만원 이하</li>
+                </ul>
+                <p class="info-more" style="margin-top:10px">
+                  📖 <strong>부양가족 공제 더 자세히</strong>
+                  <a href="https://blog.naver.com/better304/224267379625" target="_blank" rel="noopener">블로그 글 보기 →</a>
+                </p>
+              </div>
+            </details>
+            <div id="depList"></div>
+            <button type="button" class="btn btn-ghost btn-full" id="addDep">+ 부양가족 추가</button>
+          </div>
+        </div>
+
+        <!-- ── 업종별 서류 / 자료 ── -->
+        <div id="docList" style="margin-top:18px"></div>
+
+        <div class="nav-btns">
+          <button type="button" class="btn btn-ghost" data-prev>← 이전</button>
+          <button type="button" class="btn btn-primary" data-next>다음 →</button>
+        </div>
       </div>
 
-      <!-- Step 1: 기본정보 -->
-      <div class="form-step" data-fstep="1">
-        <div class="step-head"><span class="step-pos"><strong>1</strong> / 7</span><span>기본정보</span></div>
+      <!-- Step 3: 신고자 정보 -->
+      <div class="form-step" data-fstep="3">
+        <div class="step-head"><span class="step-pos"><strong>2</strong> / 6</span><span>신고자 정보</span></div>
         <div class="step-title">신고자 정보를 입력해 주세요</div>
 
         <div class="field">
@@ -459,9 +521,9 @@
         </div>
       </div>
 
-      <!-- Step 2: 주민번호 -->
-      <div class="form-step" data-fstep="2">
-        <div class="step-head"><span><strong>2</strong> / 7</span><span>주민등록번호</span></div>
+      <!-- Step 4: 주민번호 (신규만) -->
+      <div class="form-step" data-fstep="4">
+        <div class="step-head"><span class="step-pos"><strong>3</strong> / 6</span><span>주민등록번호</span></div>
         <div class="step-title">주민등록번호를 입력해 주세요</div>
         <div class="secure-note">🔐 <div>종단간 암호화(E2EE)기술이 적용되어, 입력값은 즉시 암호화됩니다</div></div>
         <div class="field">
@@ -478,9 +540,9 @@
         </div>
       </div>
 
-      <!-- Step 3: 홈택스 -->
-      <div class="form-step" data-fstep="3">
-        <div class="step-head"><span><strong>3</strong> / 7</span><span>홈택스 계정</span></div>
+      <!-- Step 5: 홈택스 (신규만) -->
+      <div class="form-step" data-fstep="5">
+        <div class="step-head"><span class="step-pos"><strong>4</strong> / 6</span><span>홈택스 계정</span></div>
         <div class="step-title">홈택스 로그인 정보</div>
         <div class="secure-note">🔐 <div>종단간 암호화(E2EE)기술이 적용되어, 입력값은 즉시 암호화됩니다</div></div>
         <div class="field">
@@ -501,44 +563,9 @@
         </div>
       </div>
 
-      <!-- Step 4: 부양가족 -->
-      <div class="form-step" data-fstep="4">
-        <div class="step-head"><span class="step-pos"><strong>4</strong> / 7</span><span>부양가족 공제</span></div>
-        <div class="step-title">공제받을 부양가족이 있으신가요?</div>
-        <p style="font-size:13px;color:var(--ink-500);margin-bottom:10px">없으면 바로 다음 단계로.</p>
-
-        <details class="dep-help">
-          <summary>❓ 공제받을 부양가족이란?</summary>
-          <div class="dep-help-body">
-            <p style="margin:8px 0 6px;font-weight:600">부양가족으로 인정받으려면 아래 두 가지를 모두 만족해야 해요.</p>
-            <p style="margin:8px 0 4px"><strong>① 나이</strong></p>
-            <ul style="margin:0 0 8px;padding-left:18px">
-              <li>만 20세 이하 (자녀 등)</li>
-              <li>또는 만 60세 이상 (부모님 등)</li>
-            </ul>
-            <p style="margin:8px 0 4px"><strong>② 1년 동안 번 돈 (소득)</strong></p>
-            <ul style="margin:0 0 8px;padding-left:18px">
-              <li>연 100만원 이하</li>
-              <li>월급만 받으시는 경우 → 연 500만원 이하</li>
-            </ul>
-            <p class="info-more" style="margin-top:10px">
-              📖 <strong>부양가족 공제 더 자세히</strong>
-              <a href="https://blog.naver.com/better304/224267379625" target="_blank" rel="noopener">블로그 글 보기 →</a>
-            </p>
-          </div>
-        </details>
-
-        <div id="depList"></div>
-        <button type="button" class="btn btn-ghost btn-full" id="addDep">+ 부양가족 추가</button>
-        <div class="nav-btns">
-          <button type="button" class="btn btn-ghost" data-prev>← 이전</button>
-          <button type="button" class="btn btn-primary" data-next>다음 →</button>
-        </div>
-      </div>
-
-      <!-- Step 5: 소득 종류 -->
-      <div class="form-step" data-fstep="5">
-        <div class="step-head"><span class="step-pos"><strong>5</strong> / 7</span><span>소득종류 / 전달사항</span></div>
+      <!-- Step 6: 소득 종류 / 전달사항 -->
+      <div class="form-step" data-fstep="6">
+        <div class="step-head"><span class="step-pos"><strong>5</strong> / 6</span><span>소득종류 / 전달사항</span></div>
         <div class="step-title">소득 종류와 전달사항을 적어주세요</div>
 
         <div class="field">
@@ -557,21 +584,9 @@
         </div>
       </div>
 
-      <!-- Step 6: 파일 업로드 -->
-      <div class="form-step" data-fstep="6">
-        <div class="step-head"><span><strong>6</strong> / 7</span><span>첨부 서류</span></div>
-        <div class="step-title">필요 서류를 업로드해 주세요</div>
-        <p style="font-size:13px;color:var(--ink-500);margin-bottom:12px">업종에 따라 목록이 달라집니다. 사진·PDF 가능, 여러 장 OK.</p>
-        <div id="docList"></div>
-        <div class="nav-btns">
-          <button type="button" class="btn btn-ghost" data-prev>← 이전</button>
-          <button type="button" class="btn btn-primary" data-next>다음 →</button>
-        </div>
-      </div>
-
       <!-- Step 7: 동의 & 제출 -->
       <div class="form-step" data-fstep="7">
-        <div class="step-head"><span><strong>7</strong> / 7</span><span>동의 및 제출</span></div>
+        <div class="step-head"><span class="step-pos"><strong>6</strong> / 6</span><span>동의 및 제출</span></div>
         <div class="step-title">마지막 확인</div>
         <div class="agree-block">
           <label><input type="checkbox" required name="agree1"/><span><strong>[필수]</strong> 개인정보 수집·이용 동의</span></label>
@@ -809,28 +824,41 @@ $$('[data-toggle]').forEach(btn=>{
   });
 });
 
-/* ═════════ chip ═════════ */
+/* ═════════ 업종 chip ═════════ */
 $$('#bizType .chip').forEach(c=>{
   c.addEventListener('click',()=>{
     $$('#bizType .chip').forEach(x=>x.classList.remove('active'));
     c.classList.add('active');
     $('[name="bizType"]').value = c.dataset.v;
-    /* 업종 선택 직후 자동으로 다음 (필요서류 안내) 단계로 */
-    setTimeout(() => showForm('prep'), 200);
+    const isFree = c.dataset.v === 'free';
+    $('#freelancerIncome').style.display = isFree ? 'block' : 'none';
+    if(isFree){
+      /* 프리랜서: 매출 분기 라디오 선택을 기다림 (자동 진행 안 함) */
+    } else {
+      /* 프리랜서가 아니면 income7000 선택값 초기화 + 자동으로 Step 2 이동 */
+      $$('[name="income7000"]').forEach(r => r.checked = false);
+      setTimeout(() => { if(validateStep('1')) showForm('2'); }, 200);
+    }
   });
 });
-/* (구) incomeChips 핸들러 — Step 5가 자유 텍스트로 바뀌어 더 이상 필요 없음 */
+
+/* 프리랜서 매출 분기 라디오 선택 시 — 자동 진행 */
+document.addEventListener('change', e => {
+  if(e.target.name === 'income7000'){
+    setTimeout(() => { if(validateStep('1')) showForm('2'); }, 200);
+  }
+});
 
 /* ═════════ 폼 스텝 ═════════ */
-/* userType: 'new' (모든 7단계) | 'existing' (Step 2,3 건너뜀) */
+/* userType: 'new' (8단계) | 'existing' (Step 4,5 건너뜀, 총 6단계) */
 let userType = 'new';
-let fstep = 'biz';      /* 첫 화면은 Step BIZ (업종 선택) */
+let fstep = '0';      /* 첫 화면은 Step 0 (이용 유형) */
 
 function flowSteps(){
   /* 화면에 보여지는 DOM step 순서 (string ID) */
   return userType === 'existing'
-    ? ['biz','prep','0','1','4','5','6','7']
-    : ['biz','prep','0','1','2','3','4','5','6','7'];
+    ? ['0','1','2','3','6','7']
+    : ['0','1','2','3','4','5','6','7'];
 }
 function nextDomStep(cur){
   const f = flowSteps();
@@ -843,8 +871,8 @@ function prevDomStep(cur){
   return i <= 0 ? cur : f[i - 1];
 }
 function updateStepLabels(){
-  /* 본격 입력 단계만 번호 부여 (biz/prep/이용유형 제외) */
-  const visible = userType === 'existing' ? ['1','4','5','6','7'] : ['1','2','3','4','5','6','7'];
+  /* Step 0 (이용유형) · Step 1 (업종) 은 번호 미부여, 나머지만 번호 */
+  const visible = userType === 'existing' ? ['2','3','6','7'] : ['2','3','4','5','6','7'];
   const total = visible.length;
   visible.forEach((dom, idx) => {
     const head = $(`.form-step[data-fstep="${dom}"] .step-pos`);
@@ -859,8 +887,7 @@ function showForm(n){
   const fIdx = Math.max(0, flow.indexOf(fstep));
   const pct = flow.length > 1 ? (fIdx / (flow.length - 1)) * 100 : 0;
   $('#progBar').style.width = pct + '%';
-  if(fstep === 'prep') renderPrepList();
-  if(fstep === '6') renderDocList();
+  if(fstep === '2') renderDocList();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
@@ -871,9 +898,22 @@ $$('.user-type-card').forEach(card => card.addEventListener('click', () => {
   userType = card.dataset.utype;
   $('[name="userType"]').value = userType;
   updateStepLabels();
-  /* 자동으로 다음 단계로 이동 */
+  /* 자동으로 Step 1 (업종 선택)으로 이동 */
   setTimeout(() => showForm('1'), 200);
 }));
+
+/* Step 2 — 부양가족 있음/없음 토글 */
+document.addEventListener('change', e => {
+  if(e.target.name === 'hasDependents'){
+    const has = e.target.value === 'yes';
+    $('#depFields').style.display = has ? 'block' : 'none';
+    if(!has){
+      /* "없음"으로 바뀌면 부양가족 입력 비움 */
+      $('#depList').innerHTML = '';
+      depIdx = 0;
+    }
+  }
+});
 
 /* "달라요" 라디오 토글 */
 document.addEventListener('change', e => {
@@ -897,20 +937,89 @@ document.addEventListener('click', e=>{
 });
 function validateStep(n){
   const s = String(n);
-  if(s === 'biz'){
-    if(!$('[name="bizType"]').value){ alert('업종을 선택해 주세요'); return false; }
-    return true;
-  }
-  if(s === 'prep') return true;  /* 안내 화면 — 검증 없음 */
+  /* Step 0 — 이용 유형 */
   if(s === '0'){
     if(!userType || (userType !== 'new' && userType !== 'existing')){
       alert('이용 유형을 선택해 주세요'); return false;
     }
+    return true;
   }
+  /* Step 1 — 업종 선택 (+ 프리랜서 매출 분기) */
   if(s === '1'){
+    const b = $('[name="bizType"]').value;
+    if(!b){ alert('업종을 선택해 주세요'); return false; }
+    if(b === 'free'){
+      const inc = (document.querySelector('[name="income7000"]:checked') || {}).value;
+      if(!inc){ alert('연간 수입 규모를 선택해 주세요'); return false; }
+    }
+    return true;
+  }
+  /* Step 2 — 자료 입력 (부양가족 + 업종별 자료) */
+  if(s === '2'){
+    const biz = $('[name="bizType"]').value;
+    const isExisting = userType === 'existing';
+    const income = (document.querySelector('[name="income7000"]:checked') || {}).value;
+    /* 부양가족 — 있음일 때 입력 검증 */
+    const hasDeps = (document.querySelector('[name="hasDependents"]:checked') || {}).value;
+    if(hasDeps === 'yes'){
+      const blocks = $$('#depList .dep-block');
+      if(blocks.length === 0){
+        alert('부양가족 정보를 입력하거나 "없음"을 선택해 주세요'); return false;
+      }
+      for(const blk of blocks){
+        const i = blk.dataset.dep;
+        const rel  = (blk.querySelector(`[name="dep_rel_${i}"]`)||{}).value || '';
+        const name = ((blk.querySelector(`[name="dep_name_${i}"]`)||{}).value || '').trim();
+        const rf   = (blk.querySelector(`[name="dep_rrn_f_${i}"]`)||{}).value || '';
+        const rb   = (blk.querySelector(`[name="dep_rrn_b_${i}"]`)||{}).value || '';
+        const dis  = (blk.querySelector(`[name="dep_dis_${i}"]:checked`)||{}).value || '';
+        if(!rel){ alert('부양가족 관계를 선택해 주세요'); return false; }
+        if(name.length < 2 || !/^[가-힣a-zA-Z\s]+$/.test(name)){ alert('부양가족 성함을 정확히 입력해 주세요'); return false; }
+        if(!/^\d{6}$/.test(rf) || !/^\d{7}$/.test(rb)){ alert(`부양가족(${name})의 주민등록번호를 정확히 입력해 주세요`); return false; }
+        const m = parseInt(rf.slice(2,4),10), d = parseInt(rf.slice(4,6),10);
+        if(m<1||m>12||d<1||d>31){ alert(`부양가족(${name})의 주민등록번호를 확인해 주세요`); return false; }
+        if(dis !== 'x' && dis !== 'o'){ alert(`부양가족(${name})의 장애 여부를 선택해 주세요`); return false; }
+      }
+    }
+    /* 업종별 필수 자료 검증 */
+    /* free + high + 신규: 연말정산 + 환급계좌 필수 */
+    /* free + high + 기존: 연말정산 필수 */
+    /* free + low + 신규: 환급계좌 필수 */
+    /* etc: 종합소득세 신고안내문 + 소득증빙서류 필수 */
+    if(biz === 'free' && income === 'high'){
+      const yrendInp = $('#docList input[data-doc="yrend"]');
+      if(!yrendInp || !yrendInp.files || yrendInp.files.length===0){
+        alert('연말정산 간소화자료는 필수 첨부입니다'); return false;
+      }
+      if(!isExisting){
+        const bank = $('#docList [data-amount="bankAccount"]');
+        if(!bank || !(bank.value || '').trim()){
+          alert('환급 받을 계좌를 입력해 주세요'); return false;
+        }
+      }
+    }
+    if(biz === 'free' && income === 'low' && !isExisting){
+      const bank = $('#docList [data-amount="bankAccount"]');
+      if(!bank || !(bank.value || '').trim()){
+        alert('환급 받을 계좌를 입력해 주세요'); return false;
+      }
+    }
+    if(biz === 'etc'){
+      const tn = $('#docList input[data-doc="taxNotice"]');
+      if(!tn || !tn.files || tn.files.length===0){
+        alert('종합소득세 신고안내문을 첨부해 주세요'); return false;
+      }
+      const ip = $('#docList input[data-doc="incomeProof"]');
+      if(!ip || !ip.files || ip.files.length===0){
+        alert('각 소득에 대한 증빙서류를 첨부해 주세요'); return false;
+      }
+    }
+    return true;
+  }
+  /* Step 3 — 신고자 정보 */
+  if(s === '3'){
     const tn = $('[name="targetName"]').value.trim();
     const p  = $('[name="phone"]').value;
-    const b  = $('[name="bizType"]').value;
     const same = (document.querySelector('[name="sameRequester"]:checked') || {}).value || 'yes';
     if(tn.length < 2){ alert('신고자 성함을 2자 이상 입력해 주세요'); $('[name="targetName"]').focus(); return false; }
     if(!/^[가-힣a-zA-Z\s]+$/.test(tn)){ alert('신고자 성함은 한글 또는 영문만 입력 가능합니다'); $('[name="targetName"]').focus(); return false; }
@@ -921,12 +1030,12 @@ function validateStep(n){
       if(rq.length < 2 || !/^[가-힣a-zA-Z\s]+$/.test(rq)){ alert('의뢰자 성함을 정확히 입력해 주세요 (한글/영문, 2자 이상)'); $('[name="requesterName"]').focus(); return false; }
       if(!/^01[016789]-\d{3,4}-\d{4}$/.test(rp)){ alert('의뢰자 전화번호 형식이 올바르지 않습니다'); $('[name="requesterPhone"]').focus(); return false; }
     }
-    if(!b){ alert('업종구분을 선택해 주세요'); return false; }
+    return true;
   }
-  /* Step 2/3은 'existing' 사용자에겐 건너뜀 — 검증도 자동 통과 */
-  if(s === '2' && userType === 'existing') return true;
-  if(s === '3' && userType === 'existing') return true;
-  if(s === '2'){
+  /* Step 4/5 — 기존 사용자는 건너뜀 */
+  if(s === '4' && userType === 'existing') return true;
+  if(s === '5' && userType === 'existing') return true;
+  if(s === '4'){
     const rf = $('[name="rrnFront"]').value;
     const rb = $('[name="rrnBack"]').value;
     if(!/^\d{6}$/.test(rf)){ alert('주민등록번호 앞 6자리를 정확히 입력해 주세요'); $('[name="rrnFront"]').focus(); return false; }
@@ -936,62 +1045,27 @@ function validateStep(n){
     if(dd<1 || dd>31){ alert('주민등록번호의 일(日) 부분을 확인해 주세요'); $('[name="rrnFront"]').focus(); return false; }
     if(!/^\d{7}$/.test(rb)){ alert('주민등록번호 뒷 7자리를 정확히 입력해 주세요'); $('[name="rrnBack"]').focus(); return false; }
     if(!/^[0-9]/.test(rb)){ alert('주민등록번호 뒷자리 첫 번째 숫자를 확인해 주세요'); $('[name="rrnBack"]').focus(); return false; }
+    return true;
   }
-  if(s === '3'){
+  if(s === '5'){
     const hid = $('[name="hometaxId"]').value.trim();
     const hpw = $('[name="hometaxPw"]').value;
     if((hid && !hpw) || (!hid && hpw)){
       alert('홈택스 ID와 비밀번호를 함께 입력해 주세요\n(둘 다 비워두셔도 됩니다)');
       return false;
     }
+    return true;
   }
-  if(s === '4'){
-    const blocks = $$('#depList .dep-block');
-    for(const blk of blocks){
-      const i = blk.dataset.dep;
-      const rel  = (blk.querySelector(`[name="dep_rel_${i}"]`)||{}).value || '';
-      const name = ((blk.querySelector(`[name="dep_name_${i}"]`)||{}).value || '').trim();
-      const rf   = (blk.querySelector(`[name="dep_rrn_f_${i}"]`)||{}).value || '';
-      const rb   = (blk.querySelector(`[name="dep_rrn_b_${i}"]`)||{}).value || '';
-      const dis  = (blk.querySelector(`[name="dep_dis_${i}"]:checked`)||{}).value || '';
-      if(!rel){ alert('부양가족 관계를 선택해 주세요'); return false; }
-      if(name.length < 2 || !/^[가-힣a-zA-Z\s]+$/.test(name)){ alert('부양가족 성함을 정확히 입력해 주세요'); return false; }
-      if(!/^\d{6}$/.test(rf) || !/^\d{7}$/.test(rb)){ alert(`부양가족(${name})의 주민등록번호를 정확히 입력해 주세요`); return false; }
-      const m = parseInt(rf.slice(2,4),10), d = parseInt(rf.slice(4,6),10);
-      if(m<1||m>12||d<1||d>31){ alert(`부양가족(${name})의 주민등록번호를 확인해 주세요`); return false; }
-      if(dis !== 'x' && dis !== 'o'){ alert(`부양가족(${name})의 장애 여부를 선택해 주세요`); return false; }
-    }
-  }
-  if(s === '5'){
+  /* Step 6 — 소득 종류 / 전달사항 */
+  if(s === '6'){
     const inc = ($('[name="incomeTypes"]').value || '').trim();
     if(inc.length < 2){ alert('소득 종류를 작성해 주세요'); $('[name="incomeTypes"]').focus(); return false; }
-  }
-  if(s === '6'){
-    const biz = $('[name="bizType"]').value;
-    /* 신분증 — 모든 업종 필수 */
-    const idInp = $('#docList input[data-doc="idcard"]');
-    if(!idInp || !idInp.files || idInp.files.length===0){
-      alert('신분증 사진은 필수 첨부입니다'); return false;
-    }
-    /* 연말정산 간소화자료 — 그외 제외 모두 필수 */
-    if(biz !== 'etc'){
-      const yrendInp = $('#docList input[data-doc="yrend"]');
-      if(!yrendInp || !yrendInp.files || yrendInp.files.length===0){
-        alert('연말정산 간소화자료는 필수 첨부입니다'); return false;
-      }
-    }
-    /* 환급 받을 계좌 — 프리랜서만 필수 */
-    if(biz === 'free'){
-      const bank = $('#docList [data-amount="bankAccount"]');
-      if(!bank || !(bank.value || '').trim()){
-        alert('환급 받을 계좌를 입력해 주세요'); return false;
-      }
-    }
+    return true;
   }
   return true;
 }
 updateStepLabels();
-showForm('biz');  /* Step BIZ(업종 선택) 부터 시작 */
+showForm('0');  /* Step 0 (이용 유형) 부터 시작 */
 
 /* ═════════ 부양가족 ═════════ */
 const relOpts = ['배우자','부','모','자녀','형제자매','조부모','손자녀','기타'];
@@ -1018,100 +1092,96 @@ $('#addDep').addEventListener('click',()=>{
   $('#depList').insertAdjacentHTML('beforeend', html);
 });
 
-/* ═════════ 업종별 서류 ═════════ */
-/* 필수 서류 (업종별) */
-const REQ_DOCS = {
-  self: [
-    { type:'file', k:'idcard', name:'신분증 사진', how:'주민등록증·운전면허·여권 앞면 촬영' },
-    { type:'file', k:'yrend',  name:'연말정산 간소화자료', how:'<a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스</a> → 편리한 연말정산 → 자료조회' }
-  ],
-  free: [
-    { type:'file', k:'idcard', name:'신분증 사진', how:'주민등록증·운전면허·여권 앞면 촬영' },
-    { type:'file', k:'yrend',  name:'연말정산 간소화자료', how:'<a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스</a> → 편리한 연말정산 → 자료조회' },
-    { type:'text', k:'bankAccount', name:'환급 받을 계좌', placeholder:'예) 농협 / 123-456-7890 / 홍길동' }
-  ],
-  rent: [
-    { type:'file', k:'idcard', name:'신분증 사진', how:'주민등록증·운전면허·여권 앞면 촬영' },
-    { type:'file', k:'yrend',  name:'연말정산 간소화자료', how:'<a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스</a> → 편리한 연말정산 → 자료조회' }
-  ],
-  etc: [
-    { type:'file', k:'idcard', name:'신분증 사진', how:'주민등록증·운전면허·여권 앞면 촬영' }
-  ]
+/* ═════════ 업종별 서류 (동적 계산) ═════════ */
+/* 자료 정의 (재사용 가능한 빌딩 블록) */
+const DOC_DEFS = {
+  yrend:        { type:'file', k:'yrend',  name:'연말정산 간소화자료', how:'<a href="https://www.hometax.go.kr/" target="_blank" rel="noopener">홈택스</a> → 편리한 연말정산 → 자료조회' },
+  bankAccount:  { type:'text', k:'bankAccount', name:'환급 받을 계좌', placeholder:'예) 농협 / 123-456-7890 / 홍길동' },
+  taxNotice:    { type:'file', k:'taxNotice', name:'종합소득세 신고안내문', how:'홈택스 → 신고/납부 → 종합소득세 신고안내자료 조회' },
+  incomeProof:  { type:'file', k:'incomeProof', name:'각 소득에 대한 증빙서류', how:'지급명세서, 근로소득원천징수영수증 등' },
+  /* 일반사업자 옵션 */
+  fixedCost:    { type:'text',  k:'amount_fixedCost',    name:'2025년 사업장 고정비 합계', placeholder:'ex) 전기료, 가스료, 통신비, 인터넷 등' },
+  autoCost:     { type:'text',  k:'amount_autoCost',     name:'2025년 자동차 관련 경비 합계', placeholder:'ex) 리스료, 유류비, 통행비 등' },
+  loanInterest: { type:'text',  k:'amount_loanInterest', name:'2025년 사업관련 대출이자 합계', placeholder:'사업에 쓸 용도로 받은 대출의 이자' },
+  officeRent:   { type:'text',  k:'amount_officeRent',   name:'2025년 사무실 임대료 합계' },
+  payroll:      { type:'text',  k:'amount_payroll',      name:'2025년 신고한 인건비 합계', placeholder:'직원 인건비를 국세청에 신고한 경우에만 작성' },
+  miscBiz:      { type:'mixed', k:'misc_business',       name:'그외 기타 사업 관련 경비', placeholder:'ex) 사업 관련 보험료 등' },
+  /* 프리랜서 옵션 */
+  telecom:      { type:'text',  k:'amount_telecom',  name:'2025년 통신비 합계', placeholder:'고정비 합계로 연결해주시면 됩니다' },
+  /* 부동산 임대 옵션 */
+  localTax:     { type:'file',  k:'localTax',            name:'지방세 세목별 과세증명서', how:'<a href="https://www.gov.kr/" target="_blank" rel="noopener">정부24</a>에서 무료 발급' },
+  propertyLoan: { type:'text',  k:'amount_propertyLoan', name:'부동산 취득 관련 대출이자 내역', placeholder:'부동산 취득을 위해 받은 대출의 이자' },
+  miscRental:   { type:'mixed', k:'misc_rental',         name:'그외 사업 관련 경비', placeholder:'ex) 수선비, 중개수수료' }
 };
 
-/* 기타 서류 (업종별 · 모두 선택) */
-const OPT_DOCS = {
-  self: [
-    { type:'text',  k:'amount_fixedCost',    name:'2025년 사업장 고정비 합계', placeholder:'ex) 전기료, 가스료, 통신비, 인터넷 등' },
-    { type:'text',  k:'amount_autoCost',     name:'2025년 자동차 관련 경비 합계', placeholder:'ex) 리스료, 유류비, 통행비 등' },
-    { type:'text',  k:'amount_loanInterest', name:'2025년 사업관련 대출이자 합계', placeholder:'사업에 쓸 용도로 받은 대출의 이자' },
-    { type:'text',  k:'amount_officeRent',   name:'2025년 사무실 임대료 합계' },
-    { type:'text',  k:'amount_payroll',      name:'2025년 신고한 인건비 합계', placeholder:'직원 인건비를 국세청에 신고한 경우에만 작성' },
-    { type:'mixed', k:'misc_business',       name:'그외 기타 사업 관련 경비', placeholder:'ex) 사업 관련 보험료 등' }
-  ],
-  free: [
-    { type:'text', k:'amount_telecom',  name:'2025년 통신비 합계', placeholder:'고정비 합계로 연결해주시면 됩니다' },
-    { type:'text', k:'amount_autoCost', name:'2025년 자동차 관련 경비 합계', placeholder:'ex) 리스료, 유류비, 통행비 등' }
-  ],
-  rent: [
-    { type:'file',  k:'localTax',            name:'지방세 세목별 과세증명서', how:'<a href="https://www.gov.kr/" target="_blank" rel="noopener">정부24</a>에서 무료 발급' },
-    { type:'text',  k:'amount_propertyLoan', name:'부동산 취득 관련 대출이자 내역', placeholder:'부동산 취득을 위해 받은 대출의 이자' },
-    { type:'mixed', k:'misc_rental',         name:'그외 사업 관련 경비', placeholder:'ex) 수선비, 중개수수료' }
-  ],
-  etc: []
-};
-function renderPrepList(){
+function getReqDocs(){
   const biz = $('[name="bizType"]').value || '';
-  const reqs = REQ_DOCS[biz] || [];
-  const opts = OPT_DOCS[biz] || [];
-  const out = [];
+  const isExisting = userType === 'existing';
+  const income = (document.querySelector('[name="income7000"]:checked') || {}).value;
 
-  /* 필수 자료 */
-  out.push('<div class="pl-section"><h5>📌 꼭 필요한 자료</h5><ul>');
-  if(reqs.length === 0){
-    out.push('<li>업종을 먼저 선택해 주세요</li>');
-  } else {
-    reqs.forEach(d => {
-      const name = d.type === 'text' ? `${d.name} (직접 입력)` : d.name;
-      out.push(`<li>${escapeHtmlSimple(name)}</li>`);
-    });
+  if(biz === 'self') return [];
+  if(biz === 'free'){
+    if(income === 'high'){
+      return isExisting ? [DOC_DEFS.yrend] : [DOC_DEFS.yrend, DOC_DEFS.bankAccount];
+    }
+    if(income === 'low'){
+      return isExisting ? [] : [DOC_DEFS.bankAccount];
+    }
+    return [];
   }
-  out.push('</ul></div>');
-
-  /* 있으면 좋은 자료 (선택) */
-  if(opts.length > 0){
-    out.push('<div class="pl-section"><h5>📋 있으면 좋은 자료 (선택)</h5><ul>');
-    opts.forEach(d => {
-      const tag = d.type === 'text' ? '직접 입력' : (d.type === 'mixed' ? '사진 또는 텍스트' : '파일');
-      out.push(`<li>${escapeHtmlSimple(d.name)} <span style="color:#888;font-size:11px">(${tag})</span></li>`);
-    });
-    out.push('</ul></div>');
-  } else if(biz === 'etc'){
-    out.push('<div class="pl-section" style="color:#888;font-size:13px">선택 자료 없음 (신분증만 준비)</div>');
-  }
-
-  $('#prepList').innerHTML = out.join('');
+  if(biz === 'rent') return [];
+  if(biz === 'etc')  return [DOC_DEFS.taxNotice, DOC_DEFS.incomeProof];
+  return [];
 }
+
+function getOptDocs(){
+  const biz = $('[name="bizType"]').value || '';
+  const income = (document.querySelector('[name="income7000"]:checked') || {}).value;
+
+  if(biz === 'self') return [
+    DOC_DEFS.yrend,
+    DOC_DEFS.fixedCost, DOC_DEFS.autoCost, DOC_DEFS.loanInterest,
+    DOC_DEFS.officeRent, DOC_DEFS.payroll, DOC_DEFS.miscBiz
+  ];
+  if(biz === 'free'){
+    /* low (7천만 미만)이면 연말정산도 선택자료에 포함 */
+    if(income === 'low') return [DOC_DEFS.yrend, DOC_DEFS.telecom, DOC_DEFS.autoCost];
+    return [DOC_DEFS.telecom, DOC_DEFS.autoCost];
+  }
+  if(biz === 'rent') return [DOC_DEFS.localTax, DOC_DEFS.propertyLoan, DOC_DEFS.miscRental];
+  if(biz === 'etc')  return [];
+  return [];
+}
+
 function escapeHtmlSimple(s){ return String(s||'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m])); }
 
 function renderDocList(){
   const biz = $('[name="bizType"]').value || 'self';
-  const reqs = REQ_DOCS[biz] || [];
-  const opts = OPT_DOCS[biz] || [];
+  const reqs = getReqDocs();
+  const opts = getOptDocs();
 
   const out = [];
 
-  /* ── 필수 서류 ── */
-  out.push('<div class="doc-section"><h4>📌 필수 서류</h4></div>');
-  reqs.forEach(d => out.push(renderDocEntry(d, true)));
+  /* ── 필수 서류 (있을 때만 헤더 표시) ── */
+  if(reqs.length > 0){
+    out.push('<div class="doc-section"><h4>📌 꼭 필요한 자료</h4></div>');
+    reqs.forEach(d => out.push(renderDocEntry(d, true)));
+  }
 
-  /* ── 기타 서류 (업종별, 모두 선택, 기본 접힘) ── */
+  /* ── 기타 서류 (선택, 기본 펼침 - 부동산은 절세를 위한 자료라 강조) ── */
   if(opts.length > 0){
-    out.push('<details class="doc-optional"><summary>📋 기타 서류 <span style="font-weight:500;color:#888;font-size:11px">(선택 · 클릭하여 펼치기)</span></summary><div class="doc-optional-body">');
+    const summaryLabel = (reqs.length === 0)
+      ? '📋 절세를 위해 도움되는 자료 <span style="font-weight:500;color:#888;font-size:11px">(선택)</span>'
+      : '📋 있으면 좋은 자료 <span style="font-weight:500;color:#888;font-size:11px">(선택 · 클릭하여 펼치기)</span>';
+    /* 필수 자료가 없는 업종(부동산, 일반사업자 등)은 기본 펼침 */
+    const openAttr = (reqs.length === 0) ? ' open' : '';
+    out.push(`<details class="doc-optional"${openAttr}><summary>${summaryLabel}</summary><div class="doc-optional-body">`);
     opts.forEach(d => out.push(renderDocEntry(d, false)));
     out.push('</div></details>');
-  } else if(biz === 'etc'){
-    out.push('<p style="color:#888;font-size:12px;margin:10px 0;text-align:center">필수서류 외 추가 항목이 없습니다.</p>');
+  }
+
+  if(reqs.length === 0 && opts.length === 0){
+    out.push('<p style="color:#888;font-size:13px;margin:10px 0;text-align:center">업종을 먼저 선택해 주세요</p>');
   }
 
   $('#docList').innerHTML = out.join('');
@@ -1171,9 +1241,9 @@ function renderDocEntry(d, required){
 /* ═════════ 제출 ═════════ */
 $('#appForm').addEventListener('submit', async e=>{
   e.preventDefault();
-  /* 모든 스텝 최종 재검증 (userType별 흐름; Step 0과 마지막 동의 단계 제외) */
+  /* 모든 스텝 최종 재검증 (userType별 흐름; Step 0/7은 별도 처리) */
   for(const i of flowSteps()){
-    if(i === 'biz' || i === 'prep' || i === '0' || i === '7') continue;
+    if(i === '0' || i === '7') continue;
     if(!validateStep(i)){ showForm(i); return; }
   }
   if(!$('[name="agree1"]').checked || !$('[name="agree2"]').checked){
@@ -1218,6 +1288,8 @@ $('#appForm').addEventListener('submit', async e=>{
 
   /* ── 평문(public_data) 구성 ── */
   const sameRequester = (document.querySelector('[name="sameRequester"]:checked') || {}).value || 'yes';
+  const hasDependents = (document.querySelector('[name="hasDependents"]:checked') || {}).value || 'no';
+  const income7000 = (document.querySelector('[name="income7000"]:checked') || {}).value || '';
   const publicData = {
     userType:      userType,
     targetName:    data.targetName || '',
@@ -1226,14 +1298,14 @@ $('#appForm').addEventListener('submit', async e=>{
     requesterName: sameRequester === 'no' ? (data.requesterName || '') : '',
     requesterPhone: sameRequester === 'no' ? (data.requesterPhone || '') : '',
     bizType:       data.bizType || '',
+    income7000:    income7000,            /* 'high' | 'low' | '' (프리랜서만) */
+    hasDependents: hasDependents,         /* 'yes' | 'no' */
     incomeTypes:   (data.incomeTypes || '').trim(),
     message:       (data.message || '').trim(),
     dependents:    depsPublic,
     agree1:        !!$('[name="agree1"]').checked,
     agree2:        !!$('[name="agree2"]').checked,
     agree3:        !!$('[name="agree3"]').checked,
-    quizResult:    quiz.result || '',
-    quizAnswers:   quiz.answers || {},
     submittedAt:   new Date().toISOString(),
     userAgent:     navigator.userAgent
   };
@@ -1449,4 +1521,3 @@ document.addEventListener('click', e => {
 </script>
 </body>
 </html>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            

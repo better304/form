@@ -627,16 +627,21 @@ function fillPublic(ctx){
   ctx.el.querySelector('.card-title').textContent = (pd.targetName || '-') + ' 접수';
   ctx.el.querySelector('.card-sub').textContent = `ID: ${it.id} · 접수: ${fmtDate(it.submitted_at)} · 만료: ${fmtDate(it.expires_at)}`;
 
+  const bizDisplay = pd.bizType === 'free' && pd.income7000
+    ? `${bizTypeLabel(pd.bizType)} (${income7000Label(pd.income7000)})`
+    : bizTypeLabel(pd.bizType);
+  const depsDisplay = pd.hasDependents === 'no'
+    ? '없음'
+    : (formatDeps(pd.dependents) || '없음');
   const fields = [
     ['신고대상자',  pd.targetName, { copy:true, edit:'targetName' }],
     ['의뢰자',     pd.requesterName, { copy:true, edit:'requesterName', placeholder:'(없음)' }],
     ['연락처',     pd.phone, { copy:true, edit:'phone' }],
-    ['업종구분',   bizTypeLabel(pd.bizType)],
+    ['업종구분',   bizDisplay],
     ['소득종류',   pd.incomeTypes, { edit:'incomeTypes' }],
     ['전달사항',   pd.message || pd.incomeEtc, { edit:'message', placeholder:'(없음)' }],
     ['환급계좌',   pd.bankAccount, { copy:true, placeholder:'(해당없음)' }],
-    ['부양가족',   formatDeps(pd.dependents)],
-    ['진단결과',   pd.quizResult || '(없음)'],
+    ['부양가족',   depsDisplay],
     ['동의',       `필수1=${pd.agree1?'✓':'✗'} · 필수2=${pd.agree2?'✓':'✗'} · 마케팅=${pd.agree3?'✓':'✗'}`],
     ['제출시각',   fmtDate(pd.submittedAt)]
   ];
@@ -1220,7 +1225,7 @@ function buildOneReportPage(item, dec, files){
     <td class="label" style="width:18%">(신고자)성함</td>
     <td style="width:30%">${e(pd.targetName)}</td>
     <td class="label">업종<br><span style="font-weight:normal;font-size:9pt">(프리랜서, 임대업)</span></td>
-    <td>${e(bizTypeLabel(pd.bizType))}</td>
+    <td>${e(bizTypeLabel(pd.bizType))}${pd.bizType === 'free' && pd.income7000 ? ` (${e(income7000Label(pd.income7000))})` : ''}</td>
   </tr>
   <tr>
     <td class="label">(의뢰자)성함</td>
@@ -1385,6 +1390,8 @@ function buildExportRow(item, dec){
     '의뢰자': pd.requesterName || '',
     '연락처': pd.phone || '',
     '업종구분': bizTypeLabel(pd.bizType),
+    '프리랜서수입': income7000Label(pd.income7000),
+    '부양가족유무': hasDepsLabel(pd.hasDependents),
     '주민번호': s.rrn || '',
     '홈택스ID': s.hometax_id || '',
     '홈택스PW': s.hometax_pw || '',
@@ -1600,7 +1607,13 @@ function bytesToB64Local(bytes){
 }
 
 function bizTypeLabel(b){
-  return ({self:'일반',free:'프리랜서',rent:'부동산임대'})[b] || b || '-';
+  return ({self:'일반',free:'프리랜서',rent:'부동산임대',etc:'그외'})[b] || b || '-';
+}
+function income7000Label(v){
+  return ({high:'7천만↑',low:'7천만↓'})[v] || '';
+}
+function hasDepsLabel(v){
+  return v === 'yes' ? '있음' : (v === 'no' ? '없음' : '');
 }
 function statusLabel(s){
   return ({pending:'🟡 대기', completed:'🟢 출력완료'})[s] || s || '-';
