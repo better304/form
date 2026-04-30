@@ -753,7 +753,7 @@ function fillPublic(ctx){
     ['업종구분',   bizDisplay],
     ['소득종류',   pd.incomeTypes, { edit:'incomeTypes' }],
     ['전달사항',   pd.message || pd.incomeEtc, { edit:'message', placeholder:'(없음)' }],
-    ['환급계좌',   pd.bankAccount, { copy:true, placeholder:'(해당없음)' }],
+    ['환급계좌',   pd.bankAccount, { copy:true, edit:'bankAccount', placeholder:'(해당없음)' }],
     ['부양가족',   depsDisplay],
     ['동의',       `필수1=${pd.agree1?'✓':'✗'} · 필수2=${pd.agree2?'✓':'✗'} · 마케팅=${pd.agree3?'✓':'✗'}`],
     ['제출시각',   fmtDate(pd.submittedAt)]
