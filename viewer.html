@@ -1807,7 +1807,8 @@ function buildExportRow(item, dec){
     '이용유형': pd.userType === 'new' ? '신규' : (pd.userType === 'existing' ? '기존' : ''),
     '신고대상자': pd.targetName || '',
     '의뢰자': pd.requesterName || '',
-    '연락처': pd.phone || '',
+    '신고자전화번호': csvForceText(pd.phone),
+    '의뢰자전화번호': csvForceText(pd.requesterPhone),
     '업종구분': bizTypeLabel(pd.bizType),
     '프리랜서수입': income7000Label(pd.income7000),
     '부양가족유무': hasDepsLabel(pd.hasDependents),
@@ -1839,6 +1840,13 @@ function csvEscape(v){
   const s = (v == null ? '' : String(v));
   if(/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
   return s;
+}
+/* Excel이 010-1234-5678 같은 값을 수식/숫자로 잘못 해석하지 않게 강제 텍스트 — ="..." 포맷 */
+function csvForceText(v){
+  const s = (v == null ? '' : String(v));
+  if(!s) return '';
+  /* 큰따옴표 이스케이프 후 ="..." 으로 감쌈 */
+  return '="' + s.replace(/"/g, '""') + '"';
 }
 function toCSV(rows){
   if(rows.length === 0) return '';
