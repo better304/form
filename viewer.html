@@ -31,6 +31,8 @@
   .btn-link:hover{background:#2D5F3F;color:#fff}
 
   .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  /* 대시보드(접수 목록)는 좌우 여백 최소화 — 화면 폭 거의 전체 사용 */
+  #main .wrap{max-width:none;padding:14px 16px}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:8px;font-weight:700;font-size:14px;border:none;background:#2D5F3F;color:#fff}
   .btn:hover:not(:disabled){background:#1F4429}
   .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -82,6 +84,34 @@
   .admin-input.admin-money:not(:placeholder-shown){background:#F8FAFE}
   .admin-input:focus{outline:none;border-color:#2D5F3F;background:#FFFEF5}
   .admin-input.saved{border-color:#4E8B3A;background:#F0F7EA}
+  /* 첨부 개수 뱃지 */
+  .col-files{text-align:center}
+  .file-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;background:#FFF3CC;border:1px solid #E8C76B;border-radius:999px;font-size:12px;font-weight:700;color:#7A5500;white-space:nowrap}
+  /* 페이지네이션 */
+  .pagination-bar{display:flex;align-items:center;gap:8px;background:#fff;padding:9px 14px;border-radius:10px;border:1px solid #EAEAEA;margin-bottom:12px;flex-wrap:wrap}
+  .pagination-bar .pg-select{padding:6px 8px;border:1.5px solid #BFBFBF;border-radius:6px;font-size:12.5px;background:#fff;font-family:inherit}
+  .pagination-bar .pg-spacer{width:6px}
+  .pagination-bar .pg-info{font-size:12.5px;font-weight:700;min-width:60px;text-align:center;color:#1A1A1A}
+  .pagination-bar .pg-total{font-size:12px;color:#666}
+  .pagination-bar button{padding:5px 10px;font-size:13px;min-width:32px}
+  .pagination-bar button:disabled{opacity:.4;cursor:not-allowed}
+  /* 카드 모달 */
+  .card-modal-card{max-width:900px;width:100%;max-height:92vh;overflow-y:auto;padding:14px 16px}
+  .card-modal-card .detail-card{box-shadow:none;border:none;padding:0}
+  .modal-x{position:absolute;top:10px;right:14px;width:32px;height:32px;border:none;background:#F5F5F5;color:#666;font-size:20px;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2}
+  .modal-x:hover{background:#FEE;color:#D33}
+  /* 첨부 파일 그리드 (썸네일 형태) */
+  .file-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:10px;margin-top:8px}
+  .file-grid-item{position:relative;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:10px;padding:8px;cursor:pointer;transition:all .12s;display:flex;flex-direction:column;gap:6px}
+  .file-grid-item:hover{border-color:#2D5F3F;background:#F0F7EA}
+  .file-grid-item .thumb{width:100%;height:140px;background:#fff;border:1px solid #E5E8DD;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .file-grid-item .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+  .file-grid-item .thumb .ico{font-size:42px;color:#999}
+  .file-grid-item .fmeta{font-size:11px;color:#444}
+  .file-grid-item .fmeta strong{display:block;color:#2D5F3F;font-size:12px;margin-bottom:2px;word-break:break-all}
+  .file-grid-item .fmeta .fname{color:#666;font-size:10.5px;word-break:break-all}
+  .file-grid-item .fdl{position:absolute;top:6px;right:6px;background:rgba(255,255,255,.95);border:1px solid #DDD;border-radius:6px;padding:3px 7px;font-size:10.5px;font-weight:600;color:#2D5F3F;text-decoration:none}
+  .file-grid-item .fdl:hover{background:#2D5F3F;color:#fff;border-color:#2D5F3F}
 
   .list-card{background:#fff;border:1px solid #EAEAEA;border-radius:10px;overflow:hidden}
   table{width:100%;border-collapse:collapse}
@@ -226,6 +256,22 @@
       <span class="ss-divider"></span>
       <span class="ss-item ss-total">총 <strong id="ssTotal">0</strong>명</span>
     </div>
+    <!-- 페이지네이션 컨트롤 -->
+    <div class="pagination-bar" id="paginationBar">
+      <span style="font-size:12px;color:#666">한 페이지 표시:</span>
+      <select id="pageSizeSelect" class="pg-select">
+        <option value="10">10건</option>
+        <option value="20" selected>20건</option>
+        <option value="50">50건</option>
+      </select>
+      <span class="pg-spacer"></span>
+      <button class="btn ghost sm" id="pgFirst" title="처음">«</button>
+      <button class="btn ghost sm" id="pgPrev" title="이전">‹</button>
+      <span class="pg-info" id="pgInfo">1 / 1</span>
+      <button class="btn ghost sm" id="pgNext" title="다음">›</button>
+      <button class="btn ghost sm" id="pgLast" title="끝">»</button>
+      <span class="pg-total" id="pgTotal" style="margin-left:auto;font-size:12px;color:#666">총 0건</span>
+    </div>
     <div class="bulk-bar" id="bulkBar">
       <span class="count" id="bulkCount">0건 선택</span>
       <button class="btn warn sm" id="btnBulkOpen">📂 일괄 보기</button>
@@ -246,6 +292,7 @@
             <th>업종</th>
             <th>유형</th>
             <th>상태</th>
+            <th>📎</th>
             <th>수수료</th>
             <th>부가가치세</th>
             <th>메모</th>
@@ -258,15 +305,22 @@
     </div>
     <p style="font-size:11px;color:#888;margin-top:14px">데이터는 30일 후 자동 삭제됩니다. 출력완료 항목은 즉시 영구 삭제됩니다.</p>
 
-    <!-- 인라인 상세 영역 (행 클릭 시 카드가 여기 쌓임) -->
-    <div class="details-toolbar" id="detailsToolbar" style="display:none">
-      <span class="left" id="detailsCount">0건 펼침</span>
-      <button class="btn ghost sm" id="btnDecryptAll">🔐 모두 복호화</button>
-      <button class="btn ghost sm" id="btnCollapseAll">⊟ 모두 닫기</button>
-    </div>
-    <div id="detailsArea" class="details-area"></div>
   </div>
 </section>
+
+<!-- 카드 상세 모달 (행 클릭 시 팝업) -->
+<div id="cardModal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-card card-modal-card" role="document">
+    <button type="button" class="modal-x" id="cardModalClose" aria-label="닫기">×</button>
+    <div id="detailsArea" class="details-area"></div>
+  </div>
+</div>
+<!-- 호환성 위해 숨김 플레이스홀더 (기존 코드 참조 보존) -->
+<div class="details-toolbar" id="detailsToolbar" style="display:none">
+  <span class="left" id="detailsCount">0건 펼침</span>
+  <button class="btn ghost sm" id="btnDecryptAll">🔐 모두 복호화</button>
+  <button class="btn ghost sm" id="btnCollapseAll">⊟ 모두 닫기</button>
+</div>
 
 <!-- ── 인라인 카드 템플릿 (script type=text/template) ── -->
 <template id="cardTemplate">
@@ -390,7 +444,9 @@ const state = {
   masked: true,
   selected: new Set(),
   queue: [],
-  queueIdx: 0
+  queueIdx: 0,
+  pageSize: 20,
+  currentPage: 1
 };
 
 /* 공개키 로드 (편집 후 재암호화에 필요) */
@@ -541,12 +597,26 @@ function renderList(){
   });
   $('#stat').textContent = `총 ${state.items.length}건` + (q ? ` (검색결과 ${filtered.length})` : '');
 
+  /* 페이지네이션 적용 */
+  const pageSize = state.pageSize || 20;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if(state.currentPage > totalPages) state.currentPage = totalPages;
+  if(state.currentPage < 1) state.currentPage = 1;
+  const startIdx = (state.currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(startIdx, startIdx + pageSize);
+  /* 컨트롤 갱신 */
+  const pgInfo = $('#pgInfo'); if(pgInfo) pgInfo.textContent = `${state.currentPage} / ${totalPages}`;
+  const pgTotal = $('#pgTotal'); if(pgTotal) pgTotal.textContent = q ? `검색 ${filtered.length} / 총 ${state.items.length}건` : `총 ${state.items.length}건`;
+  ['#pgFirst','#pgPrev'].forEach(sel => { const b = $(sel); if(b) b.disabled = state.currentPage <= 1; });
+  ['#pgNext','#pgLast'].forEach(sel => { const b = $(sel); if(b) b.disabled = state.currentPage >= totalPages; });
+
   if(filtered.length === 0){
-    $('#rows').innerHTML = '<tr><td colspan="7" class="empty">데이터 없음</td></tr>';
+    $('#rows').innerHTML = '<tr><td colspan="11" class="empty">데이터 없음</td></tr>';
     updateBulkBar();
+    refreshStatusSummary();
     return;
   }
-  $('#rows').innerHTML = filtered.map(it => {
+  $('#rows').innerHTML = pageItems.map(it => {
     const status = it.status || 'pending';
     const checked = state.selected.has(it.id) ? 'checked' : '';
     const opts = statusOptions().map(o =>
@@ -561,7 +631,8 @@ function renderList(){
       <td>${escapeHtml(it.phone||'-')}</td>
       <td>${escapeHtml(bizTypeLabel(it.bizType))}</td>
       <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
-      <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
+<td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
+      <td class="col-files">${it.file_count != null && it.file_count > 0 ? '<span class="file-badge">📎 ' + it.file_count + '</span>' : '<span style="color:#CCC">-</span>'}</td>
       <td><input type="text" class="admin-input admin-money admin-fee" data-id="${escapeHtml(it.id)}" data-field="admin_fee" value="${escapeHtml(formatMoney(adminFee))}" placeholder="0" /></td>
       <td><input type="text" class="admin-input admin-money admin-vat" data-id="${escapeHtml(it.id)}" data-field="admin_vat" value="${escapeHtml(formatMoney(adminVat))}" placeholder="0" /></td>
       <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
@@ -687,9 +758,14 @@ function refreshStatusSummary(){
 const cards = new Map(); // id → { item, decrypted, masked, el }
 
 async function expandCard(id, scroll){
+  /* 모달 모드 — 한 번에 1건만 표시. 다른 카드가 열려있으면 먼저 닫음 */
+  Array.from(cards.keys()).forEach(otherId => {
+    if(otherId !== id) collapseCard(otherId);
+  });
   const exists = cards.get(id);
   if(exists){
-    if(scroll !== false) exists.el.scrollIntoView({ behavior:'smooth', block:'center' });
+    /* 이미 열려있으면 모달만 다시 표시 */
+    $('#cardModal').classList.add('active');
     return;
   }
 
@@ -698,6 +774,8 @@ async function expandCard(id, scroll){
   const tpl = $('#cardTemplate').content.cloneNode(true);
   const el = tpl.querySelector('.detail-card');
   el.dataset.cardId = id;
+  /* detailsArea를 비우고 새 카드만 넣음 */
+  $('#detailsArea').innerHTML = '';
   $('#detailsArea').appendChild(el);
 
   const ctx = { item:null, decrypted:null, masked:true, el, loading:true };
@@ -707,7 +785,9 @@ async function expandCard(id, scroll){
   bindCardEvents(ctx);
   updateDetailsToolbar();
 
-  if(scroll !== false) el.scrollIntoView({ behavior:'smooth', block:'start' });
+  /* 모달 표시 */
+  $('#cardModal').classList.add('active');
+  $('#cardModal').scrollTop = 0;
 
   /* ── 2단계: 백그라운드로 전체 데이터 가져와서 보강 ── */
   try{
@@ -870,11 +950,30 @@ function collapseCard(id){
   ctx.el.remove();
   cards.delete(id);
   updateDetailsToolbar();
+  /* 모달 닫기 — 카드가 더 이상 없으면 모달 숨김 */
+  if(cards.size === 0){
+    const m = $('#cardModal'); if(m) m.classList.remove('active');
+  }
 }
 
 function collapseAllCards(){
   Array.from(cards.keys()).forEach(id => collapseCard(id));
 }
+
+/* 모달 X 버튼 / 배경 클릭 시 닫기 */
+document.addEventListener('DOMContentLoaded', () => {
+  const closeBtn = document.getElementById('cardModalClose');
+  const modal = document.getElementById('cardModal');
+  if(closeBtn) closeBtn.addEventListener('click', () => collapseAllCards());
+  if(modal) modal.addEventListener('click', (e) => {
+    if(e.target === modal) collapseAllCards();  /* 배경 클릭 시만 닫음 (카드 내부 클릭은 X) */
+  });
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape' && modal && modal.classList.contains('active')){
+      collapseAllCards();
+    }
+  });
+});
 
 function updateDetailsToolbar(){
   const n = cards.size;
@@ -2277,6 +2376,17 @@ document.addEventListener('keydown', e => {
  * ════════════════════════════════════════════════════ */
 $('#search').addEventListener('input', () => renderList());
 $('#btnRefresh').addEventListener('click', () => loadList());
+
+/* 페이지네이션 컨트롤 */
+$('#pageSizeSelect').addEventListener('change', e => {
+  state.pageSize = parseInt(e.target.value, 10) || 20;
+  state.currentPage = 1;
+  renderList();
+});
+$('#pgFirst').addEventListener('click', () => { state.currentPage = 1; renderList(); });
+$('#pgPrev').addEventListener('click',  () => { state.currentPage = Math.max(1, state.currentPage - 1); renderList(); });
+$('#pgNext').addEventListener('click',  () => { state.currentPage = state.currentPage + 1; renderList(); });
+$('#pgLast').addEventListener('click',  () => { state.currentPage = 99999; renderList(); /* renderList가 클램핑 */ });
 
 /* 대시보드 엑셀 — 관리자용 (상태·수수료·부가세·메모 포함, 민감정보 없음) */
 $('#btnDashXlsx').addEventListener('click', async () => {
