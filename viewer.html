@@ -1367,8 +1367,13 @@ function fillSheetCells(ws, { item, sensitive }){
   setCellWrap(ws, 'B25', amounts.officeRent || '');
   setCellWrap(ws, 'D25', amounts.payroll || '');
 
-  /* B27 — 기타비용 */
+  /* B27 — 기타비용 (관리자 메모 + 고객 입력 기타경비 합쳐서 줄바꿈) */
   const miscParts = [];
+  /* 1) 관리자 메모 — state.items의 최신값 우선 (대시보드에서 변경한 내용 즉시 반영) */
+  const liForMemo = state.items.find(li => li.id === item.id);
+  const adminMemo = ((liForMemo && liForMemo.admin_memo) || item.admin_memo || '').trim();
+  if(adminMemo) miscParts.push(adminMemo);
+  /* 2) 고객 입력 기타경비 */
   if(miscNotes.business) miscParts.push(`[사업 기타경비] ${miscNotes.business}`);
   if(miscNotes.rental)   miscParts.push(`[임대 기타경비] ${miscNotes.rental}`);
   setCellWrap(ws, 'B27', miscParts.join('\n'));
