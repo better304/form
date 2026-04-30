@@ -31,8 +31,8 @@
   .btn-link:hover{background:#2D5F3F;color:#fff}
 
   .wrap{max-width:1100px;margin:0 auto;padding:18px}
-  /* 대시보드(접수 목록)는 좌우 여백 최소화 — 화면 폭 거의 전체 사용 */
-  #main .wrap{max-width:none;padding:14px 16px}
+  /* 대시보드 — 좌우 10% 여백 */
+  #main .wrap{max-width:none;padding:14px 10%}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:8px;font-weight:700;font-size:14px;border:none;background:#2D5F3F;color:#fff}
   .btn:hover:not(:disabled){background:#1F4429}
   .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -87,6 +87,13 @@
   /* 첨부 개수 뱃지 */
   .col-files{text-align:center}
   .file-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;background:#FFF3CC;border:1px solid #E8C76B;border-radius:999px;font-size:12px;font-weight:700;color:#7A5500;white-space:nowrap}
+  /* 필터 + 정렬 바 */
+  .filter-bar{display:flex;align-items:center;gap:8px;background:#fff;padding:9px 14px;border-radius:10px;border:1px solid #EAEAEA;margin-bottom:10px;flex-wrap:wrap}
+  .filter-bar .fb-label{font-size:12px;color:#666;font-weight:700}
+  .filter-bar .fb-select{padding:6px 10px;border:1.5px solid #BFBFBF;border-radius:6px;font-size:12.5px;background:#fff;font-family:inherit;cursor:pointer;min-width:110px}
+  .filter-bar .fb-select:focus{outline:none;border-color:#2D5F3F}
+  .filter-bar .fb-select.active{background:#F0F7EA;border-color:#4E8B3A;color:#2D5F3F;font-weight:700}
+  .filter-bar .fb-divider{width:1px;height:22px;background:#DDD;margin:0 4px}
   /* 페이지네이션 */
   .pagination-bar{display:flex;align-items:center;gap:8px;background:#fff;padding:9px 14px;border-radius:10px;border:1px solid #EAEAEA;margin-bottom:12px;flex-wrap:wrap}
   .pagination-bar .pg-select{padding:6px 8px;border:1.5px solid #BFBFBF;border-radius:6px;font-size:12.5px;background:#fff;font-family:inherit}
@@ -256,6 +263,44 @@
       <span class="ss-divider"></span>
       <span class="ss-item ss-total">총 <strong id="ssTotal">0</strong>명</span>
     </div>
+    <!-- 필터 + 정렬 바 -->
+    <div class="filter-bar" id="filterBar">
+      <span class="fb-label">필터:</span>
+      <select id="filterBiz" class="fb-select">
+        <option value="all">업종 전체</option>
+        <option value="self">일반</option>
+        <option value="free">프리랜서</option>
+        <option value="rent">부동산임대</option>
+        <option value="etc">그외</option>
+      </select>
+      <select id="filterUserType" class="fb-select">
+        <option value="all">유형 전체</option>
+        <option value="new">✨ 신규</option>
+        <option value="existing">🔁 기존</option>
+      </select>
+      <select id="filterStatus" class="fb-select">
+        <option value="all">상태 전체</option>
+        <option value="pending">🟡 대기</option>
+        <option value="revising">🟠 수정중</option>
+        <option value="revised">🟣 수정완료</option>
+        <option value="completed">🟢 출력완료</option>
+        <option value="filed">🔵 신고완료</option>
+        <option value="canceled">⚫ 접수취소</option>
+      </select>
+      <span class="fb-divider"></span>
+      <span class="fb-label">정렬:</span>
+      <select id="sortKey" class="fb-select">
+        <option value="submitted_desc">접수일 최신순</option>
+        <option value="submitted_asc">접수일 오래된순</option>
+        <option value="bizType_asc">업종순 (일반→그외)</option>
+        <option value="bizType_desc">업종 역순</option>
+        <option value="userType_asc">유형순 (신규→기존)</option>
+        <option value="userType_desc">유형 역순</option>
+        <option value="status_asc">상태 진행순 (대기→취소)</option>
+        <option value="status_desc">상태 진행역순 (취소→대기)</option>
+      </select>
+      <button class="btn ghost sm" id="btnClearFilter" title="모든 필터/정렬 초기화">↺ 초기화</button>
+    </div>
     <!-- 페이지네이션 컨트롤 -->
     <div class="pagination-bar" id="paginationBar">
       <span style="font-size:12px;color:#666">한 페이지 표시:</span>
@@ -336,6 +381,10 @@
     <h4 class="sec-h">📋 일반 정보</h4>
     <div class="public-data"></div>
 
+    <!-- 첨부 파일 (E2EE 분리 — 즉시 표시) -->
+    <h4 class="sec-h">📎 첨부 파일</h4>
+    <div class="public-file-list"></div>
+
     <h4 class="sec-h">🔐 민감정보</h4>
     <div class="sensitive-locked lock-card">
       <div class="ico">🔒</div>
@@ -348,7 +397,7 @@
         <button class="btn ghost sm card-mask">👁 보기</button>
       </div>
       <div class="sensitive-fields sensitive"></div>
-      <h4 class="sec-h" style="font-size:13px">📎 첨부 파일</h4>
+      <h4 class="sec-h" style="font-size:13px">📎 암호화된 첨부 (구버전)</h4>
       <div class="file-list"></div>
     </div>
 
@@ -446,8 +495,41 @@ const state = {
   queue: [],
   queueIdx: 0,
   pageSize: 20,
-  currentPage: 1
+  currentPage: 1,
+  filterBiz: 'all',
+  filterUserType: 'all',
+  filterStatus: 'all',
+  sortKey: 'submitted_desc'
 };
+
+/* 정렬 인덱스 (진행순 정의) */
+const STATUS_ORDER = { pending:0, revising:1, revised:2, completed:3, filed:4, canceled:5 };
+const BIZ_ORDER    = { self:0, free:1, rent:2, etc:3 };
+const USERTYPE_ORDER = { new:0, existing:1 };
+function getCmpFn(sortKey){
+  const [field, dir] = sortKey.split('_');
+  const sign = dir === 'asc' ? 1 : -1;
+  return (a, b) => {
+    let va, vb;
+    if(field === 'submitted'){
+      va = a.submitted_at || ''; vb = b.submitted_at || '';
+    } else if(field === 'bizType'){
+      va = BIZ_ORDER[a.bizType] != null ? BIZ_ORDER[a.bizType] : 99;
+      vb = BIZ_ORDER[b.bizType] != null ? BIZ_ORDER[b.bizType] : 99;
+    } else if(field === 'userType'){
+      va = USERTYPE_ORDER[a.userType] != null ? USERTYPE_ORDER[a.userType] : 99;
+      vb = USERTYPE_ORDER[b.userType] != null ? USERTYPE_ORDER[b.userType] : 99;
+    } else if(field === 'status'){
+      va = STATUS_ORDER[a.status||'pending'] != null ? STATUS_ORDER[a.status||'pending'] : 99;
+      vb = STATUS_ORDER[b.status||'pending'] != null ? STATUS_ORDER[b.status||'pending'] : 99;
+    } else {
+      va = ''; vb = '';
+    }
+    if(va < vb) return -1 * sign;
+    if(va > vb) return  1 * sign;
+    return 0;
+  };
+}
 
 /* 공개키 로드 (편집 후 재암호화에 필요) */
 (async () => {
@@ -591,11 +673,31 @@ async function loadList(){
 
 function renderList(){
   const q = ($('#search').value || '').trim().toLowerCase();
-  const filtered = state.items.filter(it => {
-    if(!q) return true;
-    return [it.target_name, it.id].some(s => (s||'').toLowerCase().includes(q));
+  let filtered = state.items.filter(it => {
+    /* 검색어 */
+    if(q && !([it.target_name, it.id].some(s => (s||'').toLowerCase().includes(q)))) return false;
+    /* 업종 */
+    if(state.filterBiz !== 'all' && it.bizType !== state.filterBiz) return false;
+    /* 유형 */
+    if(state.filterUserType !== 'all' && it.userType !== state.filterUserType) return false;
+    /* 상태 */
+    if(state.filterStatus !== 'all' && (it.status || 'pending') !== state.filterStatus) return false;
+    return true;
   });
-  $('#stat').textContent = `총 ${state.items.length}건` + (q ? ` (검색결과 ${filtered.length})` : '');
+  /* 정렬 */
+  filtered.sort(getCmpFn(state.sortKey || 'submitted_desc'));
+  /* 활성 필터 시각 표시 */
+  $('#filterBiz').classList.toggle('active', state.filterBiz !== 'all');
+  $('#filterUserType').classList.toggle('active', state.filterUserType !== 'all');
+  $('#filterStatus').classList.toggle('active', state.filterStatus !== 'all');
+  $('#sortKey').classList.toggle('active', state.sortKey !== 'submitted_desc');
+
+  const activeFilterCount = (state.filterBiz !== 'all' ? 1 : 0) +
+                             (state.filterUserType !== 'all' ? 1 : 0) +
+                             (state.filterStatus !== 'all' ? 1 : 0);
+  let statText = `총 ${state.items.length}건`;
+  if(q || activeFilterCount > 0) statText += ` (필터 적용 ${filtered.length})`;
+  $('#stat').textContent = statText;
 
   /* 페이지네이션 적용 */
   const pageSize = state.pageSize || 20;
@@ -874,6 +976,61 @@ function fillPublic(ctx){
       ${copyBtn}
     </div>`;
   }).join('');
+
+  /* public_files (E2EE 분리 — 즉시 표시) */
+  renderPublicFiles(ctx);
+}
+
+/* 첨부 파일 — public_files (복호화 불필요, 즉시 표시) */
+function renderPublicFiles(ctx){
+  const it = ctx.item;
+  const box = ctx.el.querySelector('.public-file-list');
+  if(!box) return;
+  const pubFiles = (it && Array.isArray(it.public_files)) ? it.public_files : [];
+  /* 기존 Blob URL 정리 (재렌더 시 메모리 누수 방지) */
+  if(ctx._pubFileUrls){
+    ctx._pubFileUrls.forEach(u => { try{ URL.revokeObjectURL(u); }catch(_){} });
+  }
+  ctx._pubFileUrls = [];
+
+  if(pubFiles.length === 0){
+    /* encrypted.files도 없으면 진짜 첨부 0건 */
+    const hasEnc = it && it.encrypted && Array.isArray(it.encrypted.files) && it.encrypted.files.length > 0;
+    box.innerHTML = hasEnc
+      ? '<p style="color:#888;font-size:12px;margin:4px 0">(이 접수는 구버전 — 아래 [개인키로 복호화]로 첨부 확인)</p>'
+      : '<p style="color:#888;font-size:12px;margin:4px 0">첨부된 파일 없음</p>';
+    return;
+  }
+  /* 그리드 형태로 렌더 */
+  const items = pubFiles.map((f, i) => {
+    const bytes = b64ToBytes(f.data);
+    const blob = new Blob([bytes], { type: f.mime || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    ctx._pubFileUrls.push(url);
+    const isImg = (f.mime || '').startsWith('image/');
+    const isPdf = (f.mime || '') === 'application/pdf';
+    const thumb = isImg
+      ? `<img src="${url}" alt="">`
+      : (isPdf ? '<div class="ico">📄</div>' : '<div class="ico">📎</div>');
+    return `<div class="file-grid-item" data-url="${url}" data-mime="${escapeHtml(f.mime||'')}" data-name="${escapeHtml(f.name||'')}">
+      <div class="thumb">${thumb}</div>
+      <div class="fmeta">
+        <strong>${escapeHtml(docKeyLabel(f.docKey))}</strong>
+        <span class="fname">${escapeHtml(f.name||'')} · ${((f.size||0)/1024).toFixed(0)}KB</span>
+      </div>
+      <a href="${url}" download="${escapeHtml(f.name||'file')}" class="fdl" onclick="event.stopPropagation()">⬇ 저장</a>
+    </div>`;
+  }).join('');
+  box.innerHTML = `<div class="file-grid">${items}</div>`;
+
+  /* 클릭 시 새 창 (이미지/PDF 모두) */
+  box.querySelectorAll('.file-grid-item').forEach(it => {
+    it.addEventListener('click', e => {
+      if(e.target.closest('.fdl')) return;
+      const url = it.dataset.url;
+      if(url) window.open(url, '_blank');
+    });
+  });
 }
 
 function bindCardEvents(ctx){
@@ -946,6 +1103,11 @@ function collapseCard(id){
     if(ctx.decrypted.sensitive){
       for(const k in ctx.decrypted.sensitive) ctx.decrypted.sensitive[k] = null;
     }
+  }
+  /* public_files Blob URL 정리 */
+  if(ctx._pubFileUrls){
+    ctx._pubFileUrls.forEach(u => { try{ URL.revokeObjectURL(u); }catch(_){} });
+    ctx._pubFileUrls = [];
   }
   ctx.el.remove();
   cards.delete(id);
@@ -2376,6 +2538,39 @@ document.addEventListener('keydown', e => {
  * ════════════════════════════════════════════════════ */
 $('#search').addEventListener('input', () => renderList());
 $('#btnRefresh').addEventListener('click', () => loadList());
+
+/* 필터/정렬 컨트롤 */
+$('#filterBiz').addEventListener('change', e => {
+  state.filterBiz = e.target.value;
+  state.currentPage = 1;
+  renderList();
+});
+$('#filterUserType').addEventListener('change', e => {
+  state.filterUserType = e.target.value;
+  state.currentPage = 1;
+  renderList();
+});
+$('#filterStatus').addEventListener('change', e => {
+  state.filterStatus = e.target.value;
+  state.currentPage = 1;
+  renderList();
+});
+$('#sortKey').addEventListener('change', e => {
+  state.sortKey = e.target.value;
+  renderList();
+});
+$('#btnClearFilter').addEventListener('click', () => {
+  state.filterBiz = 'all';
+  state.filterUserType = 'all';
+  state.filterStatus = 'all';
+  state.sortKey = 'submitted_desc';
+  $('#filterBiz').value = 'all';
+  $('#filterUserType').value = 'all';
+  $('#filterStatus').value = 'all';
+  $('#sortKey').value = 'submitted_desc';
+  state.currentPage = 1;
+  renderList();
+});
 
 /* 페이지네이션 컨트롤 */
 $('#pageSizeSelect').addEventListener('change', e => {

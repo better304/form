@@ -832,32 +832,30 @@ async function encryptSubmission(publicData, sensitiveObj, fileList){
   const textBytes = new TextEncoder().encode(JSON.stringify(sensitiveObj));
   const encText = await crypto.subtle.encrypt({ name:'AES-GCM', iv:ivText }, aesKey, textBytes);
 
-  /* 4. 파일도 같은 AES키로 암호화 (각 파일 다른 IV) */
-  const encFiles = [];
+  /* 4. 첨부파일은 평문(base64)로 별도 전송 — 관리자 즉시 확인용 (HTTPS 보호) */
+  const publicFiles = [];
   for(const f of fileList){
     const buf = await f.file.arrayBuffer();
-    const iv  = crypto.getRandomValues(new Uint8Array(12));
-    const ct  = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, buf);
-    encFiles.push({
+    publicFiles.push({
       docKey: f.docKey,
       name:   f.name,
       mime:   f.mime,
       size:   f.size,
-      iv:     _ab2b64(iv),
-      data:   _ab2b64(ct)
+      data:   _ab2b64(buf)
     });
   }
 
-  /* 5. 페이로드 조립 */
+  /* 5. 페이로드 조립 — encrypted.files는 빈 배열 (백워드 호환), 실제 파일은 public_files */
   return {
     format: CONFIG.PAYLOAD_FORMAT,
     submitted_at: new Date().toISOString(),
     public_data: publicData,
+    public_files: publicFiles,
     encrypted: {
       aes_key: _ab2b64(encKey),
       iv_text: _ab2b64(ivText),
       text:    _ab2b64(encText),
-      files:   encFiles
+      files:   []
     }
   };
 }
