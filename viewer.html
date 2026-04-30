@@ -64,6 +64,8 @@
   .status-summary .ss-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
   .status-summary .ss-pending .ss-dot{background:#E8A82C}
   .status-summary .ss-completed .ss-dot{background:#4E8B3A}
+  .status-summary .ss-revising .ss-dot{background:#F26F1F}
+  .status-summary .ss-revised .ss-dot{background:#9B59B6}
   .status-summary .ss-filed .ss-dot{background:#2F6FB8}
   .status-summary .ss-canceled .ss-dot{background:#888}
   .status-summary .ss-divider{width:1px;height:20px;background:#DDD}
@@ -216,6 +218,8 @@
     <!-- 상태 집계 -->
     <div class="status-summary" id="statusSummary">
       <span class="ss-item ss-pending"><span class="ss-dot"></span>대기 <strong id="ssPending">0</strong>명</span>
+      <span class="ss-item ss-revising"><span class="ss-dot"></span>수정중 <strong id="ssRevising">0</strong>명</span>
+      <span class="ss-item ss-revised"><span class="ss-dot"></span>수정완료 <strong id="ssRevised">0</strong>명</span>
       <span class="ss-item ss-completed"><span class="ss-dot"></span>출력완료 <strong id="ssCompleted">0</strong>명</span>
       <span class="ss-item ss-filed"><span class="ss-dot"></span>신고완료 <strong id="ssFiled">0</strong>명</span>
       <span class="ss-item ss-canceled"><span class="ss-dot"></span>접수취소 <strong id="ssCanceled">0</strong>명</span>
@@ -658,7 +662,7 @@ function syncCheckAll(){
 
 /* 상태 집계 카운터 — items 배열 기준 */
 function refreshStatusSummary(){
-  const counts = { pending:0, completed:0, filed:0, canceled:0 };
+  const counts = { pending:0, completed:0, revising:0, revised:0, filed:0, canceled:0 };
   for(const it of state.items){
     const s = it.status || 'pending';
     if(counts[s] !== undefined) counts[s]++;
@@ -667,6 +671,8 @@ function refreshStatusSummary(){
   const set = (id, v) => { const el = $(id); if(el) el.textContent = v; };
   set('#ssPending',   counts.pending);
   set('#ssCompleted', counts.completed);
+  set('#ssRevising',  counts.revising);
+  set('#ssRevised',   counts.revised);
   set('#ssFiled',     counts.filed);
   set('#ssCanceled',  counts.canceled);
   set('#ssTotal',     total);
@@ -2061,6 +2067,8 @@ function statusLabel(s){
   return ({
     pending:   '🟡 대기',
     completed: '🟢 출력완료',
+    revising:  '🟠 수정중',
+    revised:   '🟣 수정완료',
     filed:     '🔵 신고완료',
     canceled:  '⚫ 접수취소'
   })[s] || s || '-';
@@ -2068,6 +2076,8 @@ function statusLabel(s){
 function statusOptions(){
   return [
     { v:'pending',   label:'🟡 대기' },
+    { v:'revising',  label:'🟠 수정중' },
+    { v:'revised',   label:'🟣 수정완료' },
     { v:'completed', label:'🟢 출력완료' },
     { v:'filed',     label:'🔵 신고완료' },
     { v:'canceled',  label:'⚫ 접수취소' }
@@ -2285,7 +2295,7 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     /* 데이터 */
     for(const it of state.items){
       const userTxt = it.userType === 'new' ? '신규' : (it.userType === 'existing' ? '기존' : '');
-      const statusTxt = ({pending:'대기',completed:'출력완료',filed:'신고완료',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
+      const statusTxt = ({pending:'대기',completed:'출력완료',revising:'수정중',revised:'수정완료',filed:'신고완료',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
       const feeNum = parseInt(moneyDigits(it.admin_fee), 10);
       const vatNum = parseInt(moneyDigits(it.admin_vat), 10);
       const row = ws.addRow([
@@ -2310,11 +2320,11 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     const widths = [18, 14, 14, 12, 8, 12, 14, 14, 32];
     widths.forEach((w, i) => { ws.getColumn(i+1).width = w; });
     /* 집계 (하단) */
-    const counts = { pending:0, completed:0, filed:0, canceled:0 };
+    const counts = { pending:0, completed:0, revising:0, revised:0, filed:0, canceled:0 };
     for(const it of state.items){ const s = it.status || 'pending'; if(counts[s] !== undefined) counts[s]++; }
     ws.addRow([]);
     const summaryRow = ws.addRow([
-      `대기 ${counts.pending}명 · 출력완료 ${counts.completed}명 · 신고완료 ${counts.filed}명 · 접수취소 ${counts.canceled}명`,
+      `대기 ${counts.pending}명 · 수정중 ${counts.revising}명 · 수정완료 ${counts.revised}명 · 출력완료 ${counts.completed}명 · 신고완료 ${counts.filed}명 · 접수취소 ${counts.canceled}명`,
       '', '', '', '', `총 ${state.items.length}명`,
       '', '', ''
     ]);
