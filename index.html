@@ -462,17 +462,6 @@
         </div>
         <input type="hidden" name="bizType" />
 
-        <!-- 프리랜서 선택 시에만 노출 -->
-        <div class="freelancer-income" id="freelancerIncome" style="display:none">
-          <div class="field" style="margin-top:14px">
-            <label>연간 수입 규모 <span class="req">*</span></label>
-            <div class="income-radio">
-              <label><input type="radio" name="income7000" value="high" /> <span>연간 수입 7,000만원 <strong>이상</strong></span></label>
-              <label><input type="radio" name="income7000" value="low" /> <span>연간 수입 7,000만원 <strong>미만</strong></span></label>
-            </div>
-          </div>
-        </div>
-
         <details class="biz-info">
           <summary>❓ 어떤 걸 골라야 할까요?</summary>
           <div class="biz-info-body">
@@ -895,29 +884,14 @@ $$('[data-toggle]').forEach(btn=>{
   });
 });
 
-/* ═════════ 업종 chip ═════════ */
+/* ═════════ 업종 chip — 선택 즉시 다음 단계 ═════════ */
 $$('#bizType .chip').forEach(c=>{
   c.addEventListener('click',()=>{
     $$('#bizType .chip').forEach(x=>x.classList.remove('active'));
     c.classList.add('active');
     $('[name="bizType"]').value = c.dataset.v;
-    const isFree = c.dataset.v === 'free';
-    $('#freelancerIncome').style.display = isFree ? 'block' : 'none';
-    if(isFree){
-      /* 프리랜서: 매출 분기 라디오 선택을 기다림 (자동 진행 안 함) */
-    } else {
-      /* 프리랜서가 아니면 income7000 선택값 초기화 + 자동으로 Step 2 이동 */
-      $$('[name="income7000"]').forEach(r => r.checked = false);
-      setTimeout(() => { if(validateStep('1')) showForm('2'); }, 200);
-    }
-  });
-});
-
-/* 프리랜서 매출 분기 라디오 선택 시 — 자동 진행 */
-document.addEventListener('change', e => {
-  if(e.target.name === 'income7000'){
     setTimeout(() => { if(validateStep('1')) showForm('2'); }, 200);
-  }
+  });
 });
 
 /* ═════════ 폼 스텝 ═════════ */
@@ -1015,21 +989,16 @@ function validateStep(n){
     }
     return true;
   }
-  /* Step 1 — 업종 선택 (+ 프리랜서 매출 분기) */
+  /* Step 1 — 업종 선택 */
   if(s === '1'){
     const b = $('[name="bizType"]').value;
     if(!b){ alert('업종을 선택해 주세요'); return false; }
-    if(b === 'free'){
-      const inc = (document.querySelector('[name="income7000"]:checked') || {}).value;
-      if(!inc){ alert('연간 수입 규모를 선택해 주세요'); return false; }
-    }
     return true;
   }
   /* Step 2 — 자료 입력 (부양가족 + 업종별 자료) */
   if(s === '2'){
     const biz = $('[name="bizType"]').value;
     const isExisting = userType === 'existing';
-    const income = (document.querySelector('[name="income7000"]:checked') || {}).value;
     /* 부양가족 — 있음일 때 입력 검증 */
     const hasDeps = (document.querySelector('[name="hasDependents"]:checked') || {}).value;
     if(hasDeps === 'yes'){
@@ -1053,26 +1022,19 @@ function validateStep(n){
       }
     }
     /* 업종별 필수 자료 검증 */
-    /* free + high + 신규: 연말정산 + 환급계좌 필수 */
-    /* free + high + 기존: 연말정산 필수 */
-    /* free + low + 신규: 환급계좌 필수 */
+    /* self: 연말정산 필수 */
+    /* free: 연말정산 필수 (+ 신규는 환급계좌 추가) */
     /* etc: 종합소득세 신고안내문 + 소득증빙서류 필수 */
-    if(biz === 'free' && income === 'high'){
+    if(biz === 'self' || biz === 'free'){
       const yrendInp = $('#docList input[data-doc="yrend"]');
       if(!yrendInp || !yrendInp.files || yrendInp.files.length===0){
         alert('연말정산 간소화자료는 필수 첨부입니다'); return false;
       }
-      if(!isExisting){
+      if(biz === 'free' && !isExisting){
         const bank = $('#docList [data-amount="bankAccount"]');
         if(!bank || !(bank.value || '').trim()){
           alert('환급 받을 계좌를 입력해 주세요'); return false;
         }
-      }
-    }
-    if(biz === 'free' && income === 'low' && !isExisting){
-      const bank = $('#docList [data-amount="bankAccount"]');
-      if(!bank || !(bank.value || '').trim()){
-        alert('환급 받을 계좌를 입력해 주세요'); return false;
       }
     }
     if(biz === 'etc'){
@@ -1194,17 +1156,11 @@ const DOC_DEFS = {
 function getReqDocs(){
   const biz = $('[name="bizType"]').value || '';
   const isExisting = userType === 'existing';
-  const income = (document.querySelector('[name="income7000"]:checked') || {}).value;
 
-  if(biz === 'self') return [];
+  if(biz === 'self') return [DOC_DEFS.yrend];   /* 일반: 연말정산 필수 */
   if(biz === 'free'){
-    if(income === 'high'){
-      return isExisting ? [DOC_DEFS.yrend] : [DOC_DEFS.yrend, DOC_DEFS.bankAccount];
-    }
-    if(income === 'low'){
-      return isExisting ? [] : [DOC_DEFS.bankAccount];
-    }
-    return [];
+    /* 프리랜서: 연말정산 필수, 신규는 + 환급계좌 */
+    return isExisting ? [DOC_DEFS.yrend] : [DOC_DEFS.yrend, DOC_DEFS.bankAccount];
   }
   if(biz === 'rent') return [];
   if(biz === 'etc')  return [DOC_DEFS.taxNotice, DOC_DEFS.incomeProof];
@@ -1213,17 +1169,14 @@ function getReqDocs(){
 
 function getOptDocs(){
   const biz = $('[name="bizType"]').value || '';
-  const income = (document.querySelector('[name="income7000"]:checked') || {}).value;
 
   if(biz === 'self') return [
-    DOC_DEFS.yrend,
     DOC_DEFS.fixedCost, DOC_DEFS.autoCost, DOC_DEFS.loanInterest,
     DOC_DEFS.officeRent, DOC_DEFS.payroll, DOC_DEFS.miscBiz
   ];
   if(biz === 'free'){
-    /* low (7천만 미만)이면 연말정산도 선택자료에 포함 */
-    if(income === 'low') return [DOC_DEFS.yrend, DOC_DEFS.telecom, DOC_DEFS.autoCost];
-    return [DOC_DEFS.telecom, DOC_DEFS.autoCost];
+    /* 프리랜서 선택자료 — 통신비/자동차 + 기타 사업관련 경비 (일반 탭과 동일 형태) */
+    return [DOC_DEFS.telecom, DOC_DEFS.autoCost, DOC_DEFS.miscBiz];
   }
   if(biz === 'rent') return [DOC_DEFS.localTax, DOC_DEFS.propertyLoan, DOC_DEFS.miscRental];
   if(biz === 'etc')  return [];
@@ -1524,7 +1477,6 @@ $('#appForm').addEventListener('submit', async e=>{
   /* ── 평문(public_data) 구성 ── */
   const sameRequester = (document.querySelector('[name="sameRequester"]:checked') || {}).value || 'yes';
   const hasDependents = (document.querySelector('[name="hasDependents"]:checked') || {}).value || 'no';
-  const income7000 = (document.querySelector('[name="income7000"]:checked') || {}).value || '';
   const publicData = {
     userType:      userType,
     targetName:    data.targetName || '',
@@ -1533,7 +1485,6 @@ $('#appForm').addEventListener('submit', async e=>{
     requesterName: sameRequester === 'no' ? (data.requesterName || '') : '',
     requesterPhone: sameRequester === 'no' ? (data.requesterPhone || '') : '',
     bizType:       data.bizType || '',
-    income7000:    income7000,            /* 'high' | 'low' | '' (프리랜서만) */
     hasDependents: hasDependents,         /* 'yes' | 'no' */
     message:       (data.message || '').trim(),
     dependents:    depsPublic,
