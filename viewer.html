@@ -69,6 +69,9 @@
   .status-summary .ss-revising .ss-dot{background:#F26F1F}
   .status-summary .ss-revised .ss-dot{background:#9B59B6}
   .status-summary .ss-filed .ss-dot{background:#2F6FB8}
+  .status-summary .ss-invoiced .ss-dot{background:#8B5E3C}
+  .status-summary .ss-paid .ss-dot{background:#D4A017}
+  .status-summary .ss-finalized .ss-dot{background:#14B8A6}
   .status-summary .ss-canceled .ss-dot{background:#888}
   .status-summary .ss-divider{width:1px;height:20px;background:#DDD}
   .status-summary .ss-total{margin-left:auto;color:#2D5F3F;font-weight:700}
@@ -87,6 +90,16 @@
   /* 첨부 개수 뱃지 */
   .col-files{text-align:center}
   .file-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;background:#FFF3CC;border:1px solid #E8C76B;border-radius:999px;font-size:12px;font-weight:700;color:#7A5500;white-space:nowrap}
+  /* 보기 모드 (활성/휴지통) */
+  .view-mode-bar{display:flex;gap:6px;margin-bottom:10px}
+  .view-mode-bar .vm-btn{padding:9px 16px;background:#fff;border:1.5px solid #DDD;border-radius:8px;font-size:13px;font-weight:700;color:#666;cursor:pointer;transition:all .12s;font-family:inherit}
+  .view-mode-bar .vm-btn:hover{border-color:#2D5F3F;color:#2D5F3F}
+  .view-mode-bar .vm-btn.active{border-color:#2D5F3F;background:#2D5F3F;color:#fff}
+  .view-mode-bar .vm-btn[data-view="trash"].active{border-color:#888;background:#888;color:#fff}
+  .view-mode-bar .vm-btn span{font-weight:600;opacity:.85;margin-left:2px}
+  /* 휴지통 모드의 행은 약간 어둡게 */
+  .trash-mode .row{opacity:.85}
+  .trash-mode .row td:not(.col-check){color:#666}
   /* 필터 + 정렬 바 */
   .filter-bar{display:flex;align-items:center;gap:8px;background:#fff;padding:9px 14px;border-radius:10px;border:1px solid #EAEAEA;margin-bottom:10px;flex-wrap:wrap}
   .filter-bar .fb-label{font-size:12px;color:#666;font-weight:700}
@@ -259,10 +272,19 @@
       <span class="ss-item ss-revised"><span class="ss-dot"></span>수정완료 <strong id="ssRevised">0</strong>명</span>
       <span class="ss-item ss-completed"><span class="ss-dot"></span>출력완료 <strong id="ssCompleted">0</strong>명</span>
       <span class="ss-item ss-filed"><span class="ss-dot"></span>신고완료 <strong id="ssFiled">0</strong>명</span>
+      <span class="ss-item ss-invoiced"><span class="ss-dot"></span>세금계산서 <strong id="ssInvoiced">0</strong>명</span>
+      <span class="ss-item ss-paid"><span class="ss-dot"></span>입금완료 <strong id="ssPaid">0</strong>명</span>
+      <span class="ss-item ss-finalized"><span class="ss-dot"></span>납부서·후기 <strong id="ssFinalized">0</strong>명</span>
       <span class="ss-item ss-canceled"><span class="ss-dot"></span>접수취소 <strong id="ssCanceled">0</strong>명</span>
       <span class="ss-divider"></span>
       <span class="ss-item ss-total">총 <strong id="ssTotal">0</strong>명</span>
     </div>
+    <!-- 보기 모드 (활성/휴지통) -->
+    <div class="view-mode-bar" id="viewModeBar">
+      <button type="button" class="vm-btn active" data-view="active">📋 활성 접수 <span id="vmActiveCount">(0)</span></button>
+      <button type="button" class="vm-btn" data-view="trash">🗑 휴지통 <span id="vmTrashCount">(0)</span></button>
+    </div>
+
     <!-- 필터 + 정렬 바 -->
     <div class="filter-bar" id="filterBar">
       <span class="fb-label">필터:</span>
@@ -285,6 +307,9 @@
         <option value="revised">🟣 수정완료</option>
         <option value="completed">🟢 출력완료</option>
         <option value="filed">🔵 신고완료</option>
+        <option value="invoiced">🟤 세금계산서 발급</option>
+        <option value="paid">💰 입금완료</option>
+        <option value="finalized">✨ 납부서 전달 및 후기요청</option>
         <option value="canceled">⚫ 접수취소</option>
       </select>
       <span class="fb-divider"></span>
@@ -348,7 +373,7 @@
         </tbody>
       </table>
     </div>
-    <p style="font-size:11px;color:#888;margin-top:14px">데이터는 30일 후 자동 삭제됩니다. 출력완료 항목은 즉시 영구 삭제됩니다.</p>
+    <p style="font-size:11px;color:#888;margin-top:14px">데이터는 신고기한 종료(매년 6/1) 후 자동 삭제됩니다. 즉시 삭제는 카드의 [🗑 삭제] 버튼 → 휴지통 30일 보관 → 자동 영구 삭제.</p>
 
   </div>
 </section>
@@ -410,7 +435,8 @@
         <button class="btn ghost card-edit" style="border-color:#1f4e79;color:#1f4e79">✏️ 편집</button>
         <button class="btn card-save" style="display:none;background:#1f4e79;color:#fff">💾 저장</button>
         <button class="btn ghost card-cancel" style="display:none">취소</button>
-        <button class="btn danger card-delete">🗑 즉시 삭제</button>
+        <button class="btn ghost card-restore" style="display:none;border-color:#2D5F3F;color:#2D5F3F">↺ 복원</button>
+        <button class="btn danger card-delete">🗑 휴지통으로 이동</button>
       </div>
     </footer>
   </article>
@@ -499,11 +525,12 @@ const state = {
   filterBiz: 'all',
   filterUserType: 'all',
   filterStatus: 'all',
-  sortKey: 'submitted_desc'
+  sortKey: 'submitted_desc',
+  viewMode: 'active'   /* 'active' | 'trash' */
 };
 
 /* 정렬 인덱스 (진행순 정의) */
-const STATUS_ORDER = { pending:0, revising:1, revised:2, completed:3, filed:4, canceled:5 };
+const STATUS_ORDER = { pending:0, revising:1, revised:2, completed:3, filed:4, invoiced:5, paid:6, finalized:7, canceled:8 };
 const BIZ_ORDER    = { self:0, free:1, rent:2, etc:3 };
 const USERTYPE_ORDER = { new:0, existing:1 };
 function getCmpFn(sortKey){
@@ -673,7 +700,17 @@ async function loadList(){
 
 function renderList(){
   const q = ($('#search').value || '').trim().toLowerCase();
+  /* 보기 모드별 카운트 — 휴지통 항목은 deleted_at가 있음 */
+  const activeCount = state.items.filter(it => !it.deleted_at).length;
+  const trashCount  = state.items.filter(it =>  it.deleted_at).length;
+  const vmA = $('#vmActiveCount'); if(vmA) vmA.textContent = `(${activeCount})`;
+  const vmT = $('#vmTrashCount');  if(vmT) vmT.textContent = `(${trashCount})`;
+
   let filtered = state.items.filter(it => {
+    /* 보기 모드 — 활성/휴지통 분기 */
+    const inTrash = !!it.deleted_at;
+    if(state.viewMode === 'active'  &&  inTrash) return false;
+    if(state.viewMode === 'trash'   && !inTrash) return false;
     /* 검색어 */
     if(q && !([it.target_name, it.id].some(s => (s||'').toLowerCase().includes(q)))) return false;
     /* 업종 */
@@ -684,6 +721,8 @@ function renderList(){
     if(state.filterStatus !== 'all' && (it.status || 'pending') !== state.filterStatus) return false;
     return true;
   });
+  /* 휴지통 모드 표시 */
+  document.body.classList.toggle('trash-mode', state.viewMode === 'trash');
   /* 정렬 */
   filtered.sort(getCmpFn(state.sortKey || 'submitted_desc'));
   /* 활성 필터 시각 표시 */
@@ -835,18 +874,23 @@ function syncCheckAll(){
 
 /* 상태 집계 카운터 — items 배열 기준 */
 function refreshStatusSummary(){
-  const counts = { pending:0, completed:0, revising:0, revised:0, filed:0, canceled:0 };
+  const counts = { pending:0, revising:0, revised:0, completed:0, filed:0, invoiced:0, paid:0, finalized:0, canceled:0 };
+  /* 활성 항목만 집계 (휴지통 제외) */
   for(const it of state.items){
+    if(it.deleted_at) continue;
     const s = it.status || 'pending';
     if(counts[s] !== undefined) counts[s]++;
   }
-  const total = state.items.length;
+  const total = state.items.filter(it => !it.deleted_at).length;
   const set = (id, v) => { const el = $(id); if(el) el.textContent = v; };
   set('#ssPending',   counts.pending);
-  set('#ssCompleted', counts.completed);
   set('#ssRevising',  counts.revising);
   set('#ssRevised',   counts.revised);
+  set('#ssCompleted', counts.completed);
   set('#ssFiled',     counts.filed);
+  set('#ssInvoiced',  counts.invoiced);
+  set('#ssPaid',      counts.paid);
+  set('#ssFinalized', counts.finalized);
   set('#ssCanceled',  counts.canceled);
   set('#ssTotal',     total);
 }
@@ -979,6 +1023,21 @@ function fillPublic(ctx){
 
   /* public_files (E2EE 분리 — 즉시 표시) */
   renderPublicFiles(ctx);
+
+  /* 휴지통 상태이면 버튼 라벨/표시 분기 */
+  const inTrash = !!it.deleted_at;
+  const delBtn = ctx.el.querySelector('.card-delete');
+  const restoreBtn = ctx.el.querySelector('.card-restore');
+  if(delBtn) delBtn.textContent = inTrash ? '🗑 영구 삭제' : '🗑 휴지통으로 이동';
+  if(restoreBtn) restoreBtn.style.display = inTrash ? '' : 'none';
+  if(inTrash){
+    /* 헤더 서브타이틀에 휴지통 표시 */
+    const sub = ctx.el.querySelector('.card-sub');
+    if(sub){
+      const trashUntil = it.trash_expires_at ? fmtDate(it.trash_expires_at) : '';
+      sub.innerHTML += ` · <strong style="color:#D33">🗑 휴지통 (${trashUntil}까지 보관)</strong>`;
+    }
+  }
 }
 
 /* 첨부 파일 — public_files (복호화 불필요, 즉시 표시) */
@@ -1076,23 +1135,62 @@ function bindCardEvents(ctx){
   /* 취소 */
   el.querySelector('.card-cancel').addEventListener('click', () => exitEditMode(ctx, /*reload*/false));
 
-  /* 즉시 삭제 */
+  /* 삭제/복원 — 활성/휴지통에 따라 분기 */
   el.querySelector('.card-delete').addEventListener('click', async () => {
-    const name = (ctx.item.public_data && ctx.item.public_data.targetName) || '';
-    if(!confirm(`⚠ 영구 삭제\n\n${name}\n\n이 데이터는 KV에서 즉시 삭제되며 복구할 수 없습니다.\n계속하시겠습니까?`)) return;
-    try{
-      const deletedId = ctx.item.id;
-      await api(`/api/item/${deletedId}`, { method:'DELETE' });
-      toast('✓ 삭제 완료');
-      state.selected.delete(deletedId);
-      collapseCard(deletedId);
-      /* 로컬 즉시 제거 — KV LIST 반영 대기 안 함 */
-      state.items = state.items.filter(it => it.id !== deletedId);
-      renderList();
-    }catch(err){
-      toast('삭제 실패: ' + err.message, 4000);
+    const item = ctx.item;
+    const name = (item.public_data && item.public_data.targetName) || '';
+    const inTrash = !!item.deleted_at;
+
+    if(inTrash){
+      /* 휴지통 → 영구 삭제 */
+      if(!confirm(`⚠ 영구 삭제\n\n${name}\n\n이 데이터는 KV에서 즉시 삭제되며 복구할 수 없습니다.\n계속하시겠습니까?`)) return;
+      try{
+        const deletedId = item.id;
+        await api(`/api/item/${deletedId}?permanent=true`, { method:'DELETE' });
+        toast('✓ 영구 삭제 완료');
+        state.selected.delete(deletedId);
+        collapseCard(deletedId);
+        state.items = state.items.filter(it => it.id !== deletedId);
+        renderList();
+      }catch(err){
+        toast('삭제 실패: ' + err.message, 4000);
+      }
+    } else {
+      /* 활성 → 휴지통으로 이동 */
+      if(!confirm(`🗑 휴지통으로 이동\n\n${name}\n\n30일 동안 휴지통에 보관된 후 자동으로 영구 삭제됩니다.\n그 전에는 휴지통에서 복원할 수 있습니다.\n계속하시겠습니까?`)) return;
+      try{
+        const trashId = item.id;
+        await api(`/api/item/${trashId}`, { method:'DELETE' });
+        toast('✓ 휴지통으로 이동 (30일 보관)');
+        state.selected.delete(trashId);
+        collapseCard(trashId);
+        /* 로컬 갱신 — 즉시 휴지통 표기 */
+        const li = state.items.find(x => x.id === trashId);
+        if(li) li.deleted_at = new Date().toISOString();
+        renderList();
+      }catch(err){
+        toast('삭제 실패: ' + err.message, 4000);
+      }
     }
   });
+
+  /* 휴지통 항목이면 [↺ 복원] 버튼 노출 */
+  const restoreBtn = el.querySelector('.card-restore');
+  if(restoreBtn){
+    restoreBtn.addEventListener('click', async () => {
+      const restoreId = ctx.item.id;
+      try{
+        await api(`/api/item/${restoreId}/restore`, { method:'POST' });
+        toast('✓ 복원 완료');
+        const li = state.items.find(x => x.id === restoreId);
+        if(li) delete li.deleted_at;
+        collapseCard(restoreId);
+        renderList();
+      }catch(err){
+        toast('복원 실패: ' + err.message, 4000);
+      }
+    });
+  }
 }
 
 function collapseCard(id){
@@ -2332,10 +2430,13 @@ function moneyDigits(v){
 function statusLabel(s){
   return ({
     pending:   '🟡 대기',
-    completed: '🟢 출력완료',
     revising:  '🟠 수정중',
     revised:   '🟣 수정완료',
+    completed: '🟢 출력완료',
     filed:     '🔵 신고완료',
+    invoiced:  '🟤 세금계산서 발급',
+    paid:      '💰 입금완료',
+    finalized: '✨ 납부서 전달 및 후기요청',
     canceled:  '⚫ 접수취소'
   })[s] || s || '-';
 }
@@ -2346,6 +2447,9 @@ function statusOptions(){
     { v:'revised',   label:'🟣 수정완료' },
     { v:'completed', label:'🟢 출력완료' },
     { v:'filed',     label:'🔵 신고완료' },
+    { v:'invoiced',  label:'🟤 세금계산서 발급' },
+    { v:'paid',      label:'💰 입금완료' },
+    { v:'finalized', label:'✨ 납부서 전달 및 후기요청' },
     { v:'canceled',  label:'⚫ 접수취소' }
   ];
 }
@@ -2539,6 +2643,17 @@ document.addEventListener('keydown', e => {
 $('#search').addEventListener('input', () => renderList());
 $('#btnRefresh').addEventListener('click', () => loadList());
 
+/* 보기 모드 토글 (활성/휴지통) */
+$$('.vm-btn').forEach(btn => btn.addEventListener('click', () => {
+  const mode = btn.dataset.view;
+  if(state.viewMode === mode) return;
+  state.viewMode = mode;
+  $$('.vm-btn').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
+  state.currentPage = 1;
+  state.selected.clear();
+  renderList();
+}));
+
 /* 필터/정렬 컨트롤 */
 $('#filterBiz').addEventListener('change', e => {
   state.filterBiz = e.target.value;
@@ -2605,7 +2720,7 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     /* 데이터 */
     for(const it of state.items){
       const userTxt = it.userType === 'new' ? '신규' : (it.userType === 'existing' ? '기존' : '');
-      const statusTxt = ({pending:'대기',completed:'출력완료',revising:'수정중',revised:'수정완료',filed:'신고완료',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
+      const statusTxt = ({pending:'대기',revising:'수정중',revised:'수정완료',completed:'출력완료',filed:'신고완료',invoiced:'세금계산서 발급',paid:'입금완료',finalized:'납부서 전달 및 후기요청',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
       const feeNum = parseInt(moneyDigits(it.admin_fee), 10);
       const vatNum = parseInt(moneyDigits(it.admin_vat), 10);
       const row = ws.addRow([
@@ -2630,11 +2745,11 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     const widths = [18, 14, 14, 12, 8, 12, 14, 14, 32];
     widths.forEach((w, i) => { ws.getColumn(i+1).width = w; });
     /* 집계 (하단) */
-    const counts = { pending:0, completed:0, revising:0, revised:0, filed:0, canceled:0 };
+    const counts = { pending:0, revising:0, revised:0, completed:0, filed:0, invoiced:0, paid:0, finalized:0, canceled:0 };
     for(const it of state.items){ const s = it.status || 'pending'; if(counts[s] !== undefined) counts[s]++; }
     ws.addRow([]);
     const summaryRow = ws.addRow([
-      `대기 ${counts.pending}명 · 수정중 ${counts.revising}명 · 수정완료 ${counts.revised}명 · 출력완료 ${counts.completed}명 · 신고완료 ${counts.filed}명 · 접수취소 ${counts.canceled}명`,
+      `대기 ${counts.pending} · 수정중 ${counts.revising} · 수정완료 ${counts.revised} · 출력완료 ${counts.completed} · 신고완료 ${counts.filed} · 세금계산서 ${counts.invoiced} · 입금완료 ${counts.paid} · 납부서·후기 ${counts.finalized} · 접수취소 ${counts.canceled}`,
       '', '', '', '', `총 ${state.items.length}명`,
       '', '', ''
     ]);
