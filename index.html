@@ -366,6 +366,8 @@
 
   /* ── 에러 카드 ────────────────────────── */
   .err-card{background:#fff;border:2px solid var(--danger);border-radius:14px;padding:18px;margin:12px 0;text-align:left}
+  .attach-limit-warn{background:#FFF5E0;border:2px solid #E89A00;border-radius:12px;padding:14px 16px;margin:0 0 14px;color:#7A4A00;animation:fadeIn .2s}
+  .attach-limit-warn strong{display:block;font-size:14px;color:#A63D00;margin-bottom:2px}
   .err-card h4{margin:0 0 6px;color:var(--danger);font-size:14px}
   .err-card p{margin:0 0 8px;font-size:13px;color:var(--ink-700)}
   .err-card code{background:var(--ink-100);padding:2px 6px;border-radius:4px;font-size:11px;word-break:break-all;display:block;margin-top:6px}
@@ -832,20 +834,28 @@ async function encryptSubmission(publicData, sensitiveObj, fileList){
   const textBytes = new TextEncoder().encode(JSON.stringify(sensitiveObj));
   const encText = await crypto.subtle.encrypt({ name:'AES-GCM', iv:ivText }, aesKey, textBytes);
 
-  /* 4. 첨부파일은 평문(base64)로 별도 전송 — 관리자 즉시 확인용 (HTTPS 보호) */
+  /* 4. 첨부파일 — 이미지는 자동 압축, base64 변환 후 평문 전송 */
   const publicFiles = [];
   for(const f of fileList){
-    const buf = await f.file.arrayBuffer();
+    const compressed = await compressFileForUpload(f.file);
+    const buf = await compressed.blob.arrayBuffer();
     publicFiles.push({
       docKey: f.docKey,
-      name:   f.name,
-      mime:   f.mime,
-      size:   f.size,
+      name:   compressed.name || f.name,
+      mime:   compressed.mime || f.mime,
+      size:   compressed.blob.size,
       data:   _ab2b64(buf)
     });
   }
+  /* 5. 합산 크기 사전 검증 — 24MB 한도 (CF Workers KV) — base64 1.33배 적용 */
+  const approxBytes = publicFiles.reduce((s, f) => s + Math.ceil(f.data.length * 0.75), 0);
+  /* base64 length × 0.75 ≈ 디코딩된 바이트 수 */
+  const TOTAL_LIMIT = 22 * 1024 * 1024;  /* 22MB 안전 마진 */
+  if(approxBytes > TOTAL_LIMIT){
+    throw new Error(`첨부파일 합산 용량이 너무 큽니다 (${(approxBytes/1024/1024).toFixed(1)}MB / 한도 ${(TOTAL_LIMIT/1024/1024).toFixed(0)}MB). 사진 매수를 줄이거나 일부를 빼고 다시 시도해 주세요.`);
+  }
 
-  /* 5. 페이로드 조립 — encrypted.files는 빈 배열 (백워드 호환), 실제 파일은 public_files */
+  /* 6. 페이로드 조립 — encrypted.files는 빈 배열 (백워드 호환), 실제 파일은 public_files */
   return {
     format: CONFIG.PAYLOAD_FORMAT,
     submitted_at: new Date().toISOString(),
@@ -858,6 +868,55 @@ async function encryptSubmission(publicData, sensitiveObj, fileList){
       files:   []
     }
   };
+}
+
+/* 첨부파일 압축 — 이미지면 다운샘플링, PDF·기타는 그대로 */
+async function compressFileForUpload(file, options){
+  options = options || {};
+  const maxDim = options.maxDim || 1600;
+  const quality = options.quality || 0.85;
+  const skipUnder = options.skipUnder || 250 * 1024;  /* 250KB 미만 통과 */
+
+  /* 이미지 아니면 그대로 */
+  if(!file || !(file.type || '').startsWith('image/')){
+    return { blob: file, name: file.name, mime: file.type };
+  }
+  /* 이미 작으면 그대로 */
+  if(file.size && file.size < skipUnder){
+    return { blob: file, name: file.name, mime: file.type };
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    let w = bitmap.width, h = bitmap.height;
+    if(w > maxDim || h > maxDim){
+      const r = Math.min(maxDim / w, maxDim / h);
+      w = Math.round(w * r); h = Math.round(h * r);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    /* PNG 투명 배경 → JPEG 변환 시 검정 방지 */
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    if(bitmap.close) bitmap.close();
+
+    const blob = await new Promise(res =>
+      canvas.toBlob(b => res(b || file), 'image/jpeg', quality)
+    );
+    /* 압축이 오히려 커진 경우 (이미 작거나 잘못된 케이스) → 원본 사용 */
+    if(blob.size >= file.size){
+      return { blob: file, name: file.name, mime: file.type };
+    }
+    /* 파일명을 .jpg로 (호환성) */
+    const newName = (file.name || 'image').replace(/\.[^.]+$/, '') + '.jpg';
+    return { blob, name: newName, mime: 'image/jpeg' };
+  } catch (err) {
+    /* 디코딩 실패 (HEIC 등) — 원본 사용 */
+    console.warn('[이미지 압축 실패, 원본 사용]', file.type, err);
+    return { blob: file, name: file.name, mime: file.type };
+  }
 }
 
 /* ═════════ 전화번호 하이픈 ═════════ */
@@ -1292,6 +1351,43 @@ document.addEventListener('click', e => {
   }
 });
 
+/* 합산 첨부 용량 검증 — 이미지 압축 추정값 기준 */
+const TOTAL_FILE_LIMIT = 22 * 1024 * 1024;  /* 22MB (서버 24MB 안전 마진) */
+function estimateCompressedSize(file){
+  /* 이미지: ~85% 감소 가정 (1600px JPEG 0.85), PDF/기타: 원본 그대로 */
+  if((file.type || '').startsWith('image/') && file.size > 250 * 1024){
+    return Math.max(150 * 1024, Math.round(file.size * 0.18));
+  }
+  return file.size;
+}
+function computeTotalAttachedBytes(){
+  let total = 0;
+  $$('#docList input[type=file]').forEach(inp => {
+    Array.from(inp.files || []).forEach(f => { total += estimateCompressedSize(f); });
+  });
+  return total;
+}
+function showAttachLimitWarning(currentBytes){
+  /* 기존 경고 제거 후 새로 표시 */
+  $$('.attach-limit-warn').forEach(e => e.remove());
+  const docList = $('#docList');
+  if(!docList) return;
+  const mb = (currentBytes / 1024 / 1024).toFixed(1);
+  const limitMb = (TOTAL_FILE_LIMIT / 1024 / 1024).toFixed(0);
+  const warn = document.createElement('div');
+  warn.className = 'attach-limit-warn';
+  warn.innerHTML = `
+    <strong>⚠ 첨부 용량 초과 (예상 ${mb}MB / 한도 ${limitMb}MB)</strong>
+    <p style="margin:6px 0 0;font-size:12.5px;line-height:1.55">
+      사진을 더 적게 선택하시거나, 일부 첨부를 제거하고 진행해 주세요.<br>
+      <small>※ 사진은 자동으로 약 85% 압축되지만, 원본이 너무 많으면 한도를 넘을 수 있습니다.</small>
+    </p>`;
+  docList.insertBefore(warn, docList.firstChild);
+}
+function clearAttachLimitWarning(){
+  $$('.attach-limit-warn').forEach(e => e.remove());
+}
+
 /* ─ 위임 이벤트: docList 내 파일/tally — 동적으로 추가되는 요소도 자동 작동 ─ */
 document.addEventListener('change', e => {
   const inp = e.target;
@@ -1299,10 +1395,28 @@ document.addEventListener('change', e => {
     const k = inp.dataset.doc;
     const target = $(`[data-list="${k}"]`);
     if(target){
-      target.innerHTML = Array.from(inp.files).map(f=>`<div>📄 ${f.name} <span style="color:var(--ink-500)">${(f.size/1024).toFixed(0)}KB</span></div>`).join('');
+      target.innerHTML = Array.from(inp.files).map(f=>{
+        const isImg = (f.type || '').startsWith('image/');
+        const est = estimateCompressedSize(f);
+        const sizeNote = (isImg && f.size > 250 * 1024)
+          ? `<small style="color:#666">${(f.size/1024).toFixed(0)}KB → 약 ${(est/1024).toFixed(0)}KB로 압축됨</small>`
+          : `<small style="color:#666">${(f.size/1024).toFixed(0)}KB</small>`;
+        return `<div>📄 ${f.name} ${sizeNote}</div>`;
+      }).join('');
     }
     const ff = inp.closest('.file-field');
     if(ff) ff.classList.toggle('has', inp.files.length>0);
+
+    /* 첨부 시점 합산 용량 검증 — 한도 초과 시 즉시 안내 */
+    const total = computeTotalAttachedBytes();
+    if(total > TOTAL_FILE_LIMIT){
+      showAttachLimitWarning(total);
+      /* 화면 상단으로 스크롤하여 경고 보이게 */
+      const warnEl = $('.attach-limit-warn');
+      if(warnEl) warnEl.scrollIntoView({ behavior:'smooth', block:'start' });
+    } else {
+      clearAttachLimitWarning();
+    }
   }
 });
 document.addEventListener('click', e => {
@@ -1547,7 +1661,7 @@ $('#appForm').addEventListener('submit', async e=>{
   /* ── 암호화 (E2EE 핵심) ── */
   let payload;
   try {
-    updateLoadingMsg(`민감정보 암호화 중… (파일 ${allFiles.length}건)`);
+    updateLoadingMsg(`사진 압축 + 암호화 중… (파일 ${allFiles.length}건)`);
     payload = await encryptSubmission(publicData, sensitive, allFiles);
   } catch(err){
     /* 즉시 메모리 정리 */
@@ -1642,14 +1756,43 @@ function disableUnloadGuard(){
   if(_unloadHandler){ window.removeEventListener('beforeunload', _unloadHandler); _unloadHandler=null; }
 }
 function showSubmitError(err){
+  const rawMsg = (err && err.message ? err.message : String(err));
+  /* 흔한 에러 패턴별 친절한 안내 */
+  let friendly = '';
+  if(/Failed to fetch|NetworkError|TypeError: fetch/i.test(rawMsg)){
+    friendly = `
+      <strong>📡 서버에 연결하지 못했습니다.</strong><br>
+      가장 가능성이 높은 원인은 <strong>첨부 파일 용량 초과</strong> 또는 <strong>네트워크 일시 단절</strong>입니다.<br><br>
+      <strong>다음을 시도해 보세요:</strong><br>
+      ① <strong>사진 매수를 줄이기</strong> (특히 신분증·연말정산 자료 1~2장씩만)<br>
+      ② Wi-Fi 또는 안정적인 네트워크 환경에서 다시 시도<br>
+      ③ 페이지 새로고침 후 다시 시도<br>
+      ④ 위 방법 모두 안 되면 담당 세무사에게 톡톡 문의`;
+  } else if(/HTTP 413|too large|Payload too large/i.test(rawMsg)){
+    friendly = `
+      <strong>📦 첨부 파일이 너무 큽니다 (한도 초과).</strong><br>
+      사진 매수를 줄이거나, 사진 해상도가 큰 경우 일부를 빼고 다시 시도해 주세요.<br>
+      가능하면 신분증·연말정산은 1~2장씩만 선택해 주세요.`;
+  } else if(/한도|용량/.test(rawMsg)){
+    friendly = `<strong>📦 ${rawMsg.replace(/</g,'&lt;')}</strong>`;
+  } else if(/HTTP 5\d\d/i.test(rawMsg)){
+    friendly = `
+      <strong>🛠 서버 일시적 장애</strong><br>
+      잠시 후 다시 시도해 주세요. 계속되면 담당 세무사에게 알려주세요.`;
+  } else {
+    friendly = `잠시 후 다시 시도해 주시거나, 아래 오류를 담당자에게 전달해 주세요.`;
+  }
+
   const wrap = document.createElement('div');
   wrap.className = 'err-card';
   wrap.innerHTML = `
     <h4>❌ 접수 전송 실패</h4>
-    <p>잠시 후 다시 시도해 주시거나, 아래 오류를 담당자에게 전달해 주세요.</p>
-    <code>${(err && err.message ? err.message : String(err)).replace(/</g,'&lt;')}</code>
+    <p style="line-height:1.7">${friendly}</p>
+    <details style="margin-top:10px"><summary style="font-size:11px;color:#888;cursor:pointer">기술 정보 보기</summary>
+      <code style="display:block;margin-top:6px">${rawMsg.replace(/</g,'&lt;')}</code>
+    </details>
     <p style="margin-top:10px;font-size:12px;color:var(--ink-500)">
-      원인이 계속되면: ① 인터넷 연결 확인 · ② 페이지 새로고침 후 재시도 · ③ 담당 세무사에게 문의
+      💬 <a href="https://talk.naver.com/W40R67" target="_blank" rel="noopener">네이버 톡톡으로 문의</a>
     </p>`;
   const btn = $('#submitBtn');
   btn.parentNode.insertBefore(wrap, btn);
