@@ -834,25 +834,31 @@ async function encryptSubmission(publicData, sensitiveObj, fileList){
   const textBytes = new TextEncoder().encode(JSON.stringify(sensitiveObj));
   const encText = await crypto.subtle.encrypt({ name:'AES-GCM', iv:ivText }, aesKey, textBytes);
 
-  /* 4. 첨부파일 — 이미지는 자동 압축, base64 변환 후 평문 전송 */
-  const publicFiles = [];
-  for(const f of fileList){
-    const compressed = await compressFileForUpload(f.file);
-    const buf = await compressed.blob.arrayBuffer();
-    publicFiles.push({
-      docKey: f.docKey,
-      name:   compressed.name || f.name,
-      mime:   compressed.mime || f.mime,
-      size:   compressed.blob.size,
-      data:   _ab2b64(buf)
-    });
-  }
-  /* 5. 합산 크기 사전 검증 — 24MB 한도 (CF Workers KV) — base64 1.33배 적용 */
-  const approxBytes = publicFiles.reduce((s, f) => s + Math.ceil(f.data.length * 0.75), 0);
-  /* base64 length × 0.75 ≈ 디코딩된 바이트 수 */
+  /* 4. 첨부파일 — 이미지는 자동 압축 (기본 1200px / 0.78) */
   const TOTAL_LIMIT = 22 * 1024 * 1024;  /* 22MB 안전 마진 */
-  if(approxBytes > TOTAL_LIMIT){
-    throw new Error(`첨부파일 합산 용량이 너무 큽니다 (${(approxBytes/1024/1024).toFixed(1)}MB / 한도 ${(TOTAL_LIMIT/1024/1024).toFixed(0)}MB). 사진 매수를 줄이거나 일부를 빼고 다시 시도해 주세요.`);
+
+  let publicFiles = await compressAll(fileList, { maxDim:1200, quality:0.78 });
+  let totalBytes = sumPublicFileBytes(publicFiles);
+
+  /* 5. 적응형 재압축 — 한도 초과 시 더 공격적으로 (1000px / 0.70) */
+  if(totalBytes > TOTAL_LIMIT){
+    if(typeof updateLoadingMsg === 'function'){
+      updateLoadingMsg('사진 추가 압축 중… (한도 맞추는 중)');
+    }
+    publicFiles = await compressAll(fileList, { maxDim:1000, quality:0.70 });
+    totalBytes = sumPublicFileBytes(publicFiles);
+  }
+  /* 6. 그래도 한도 초과면 — 매우 공격적으로 (800px / 0.65) */
+  if(totalBytes > TOTAL_LIMIT){
+    if(typeof updateLoadingMsg === 'function'){
+      updateLoadingMsg('사진 최종 압축 중…');
+    }
+    publicFiles = await compressAll(fileList, { maxDim:800, quality:0.65 });
+    totalBytes = sumPublicFileBytes(publicFiles);
+  }
+  /* 7. 마지막까지 한도 초과면 명확한 에러 */
+  if(totalBytes > TOTAL_LIMIT){
+    throw new Error(`첨부파일 합산 용량이 너무 큽니다 (${(totalBytes/1024/1024).toFixed(1)}MB / 한도 ${(TOTAL_LIMIT/1024/1024).toFixed(0)}MB). 사진 매수를 줄이거나 일부를 빼고 다시 시도해 주세요.`);
   }
 
   /* 6. 페이로드 조립 — encrypted.files는 빈 배열 (백워드 호환), 실제 파일은 public_files */
@@ -873,9 +879,9 @@ async function encryptSubmission(publicData, sensitiveObj, fileList){
 /* 첨부파일 압축 — 이미지면 다운샘플링, PDF·기타는 그대로 */
 async function compressFileForUpload(file, options){
   options = options || {};
-  const maxDim = options.maxDim || 1600;
-  const quality = options.quality || 0.85;
-  const skipUnder = options.skipUnder || 250 * 1024;  /* 250KB 미만 통과 */
+  const maxDim = options.maxDim || 1200;       /* 기본 1200px (1600에서 강화) */
+  const quality = options.quality || 0.78;     /* 기본 JPEG 0.78 (0.85에서 강화) */
+  const skipUnder = options.skipUnder || 200 * 1024;  /* 200KB 미만 통과 */
 
   /* 이미지 아니면 그대로 */
   if(!file || !(file.type || '').startsWith('image/')){
@@ -917,6 +923,26 @@ async function compressFileForUpload(file, options){
     console.warn('[이미지 압축 실패, 원본 사용]', file.type, err);
     return { blob: file, name: file.name, mime: file.type };
   }
+}
+
+/* fileList(allFiles) → publicFiles 배열 (압축 + base64) */
+async function compressAll(fileList, options){
+  const out = [];
+  for(const f of fileList){
+    const compressed = await compressFileForUpload(f.file, options);
+    const buf = await compressed.blob.arrayBuffer();
+    out.push({
+      docKey: f.docKey,
+      name:   compressed.name || f.name,
+      mime:   compressed.mime || f.mime,
+      size:   compressed.blob.size,
+      data:   _ab2b64(buf)
+    });
+  }
+  return out;
+}
+function sumPublicFileBytes(publicFiles){
+  return publicFiles.reduce((s, f) => s + Math.ceil(f.data.length * 0.75), 0);
 }
 
 /* ═════════ 전화번호 하이픈 ═════════ */
@@ -1354,9 +1380,9 @@ document.addEventListener('click', e => {
 /* 합산 첨부 용량 검증 — 이미지 압축 추정값 기준 */
 const TOTAL_FILE_LIMIT = 22 * 1024 * 1024;  /* 22MB (서버 24MB 안전 마진) */
 function estimateCompressedSize(file){
-  /* 이미지: ~85% 감소 가정 (1600px JPEG 0.85), PDF/기타: 원본 그대로 */
-  if((file.type || '').startsWith('image/') && file.size > 250 * 1024){
-    return Math.max(150 * 1024, Math.round(file.size * 0.18));
+  /* 이미지: 90% 감소 가정 (1200px JPEG 0.78 — 적응형 추가 압축 가능), PDF/기타: 원본 그대로 */
+  if((file.type || '').startsWith('image/') && file.size > 200 * 1024){
+    return Math.max(100 * 1024, Math.round(file.size * 0.10));
   }
   return file.size;
 }
