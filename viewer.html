@@ -92,6 +92,24 @@
   /* 첨부 개수 뱃지 */
   .col-files{text-align:center}
   .file-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;background:#FFF3CC;border:1px solid #E8C76B;border-radius:999px;font-size:12px;font-weight:700;color:#7A5500;white-space:nowrap}
+  /* 홈택스 검증 뱃지 */
+  .col-htx{text-align:center;white-space:nowrap}
+  .htx-badge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:6px;font-size:11.5px;font-weight:700;white-space:nowrap;border:1px solid transparent}
+  .htx-badge.htx-pending{background:#FFF5E0;border-color:#E8A82C;color:#7A5500}
+  .htx-badge.htx-ok{background:#E6F4DB;border-color:#4E8B3A;color:#2D5F3F}
+  .htx-badge.htx-err{background:#FEE;border-color:#D33;color:#A11}
+  .htx-badge.htx-warn{background:#FFE0CC;border-color:#E8741A;color:#A23900}
+  .htx-badge.htx-captcha{background:#E5E5F5;border-color:#7B4F8C;color:#4A2563}
+  /* 메모 셀 + 복사 버튼 */
+  .col-memo-cell{position:relative;display:flex;align-items:center;gap:4px;min-width:280px}
+  .col-memo-cell .admin-memo{flex:1}
+  .memo-copy-btn{padding:4px 7px;border:1px solid #DDD;background:#fff;color:#666;border-radius:5px;font-size:12px;cursor:pointer;flex-shrink:0}
+  .memo-copy-btn:hover{background:#F0F7EA;border-color:#4E8B3A;color:#2D5F3F}
+  .memo-copy-btn.copied{background:#4E8B3A;color:#fff;border-color:#2D5F3F}
+  /* 신규 미검증 알림 배너 */
+  .htx-pending-banner{display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,#F5EBFA 0%,#E5D5F0 100%);border:1.5px solid #7B4F8C;border-radius:10px;padding:11px 16px;margin-bottom:10px}
+  .htx-pending-banner .htx-pb-icon{font-size:18px}
+  .htx-pending-banner .htx-pb-msg{flex:1;font-size:13.5px;font-weight:700;color:#4A2563}
   /* 보기 모드 (활성/휴지통) */
   .view-mode-bar{display:flex;gap:6px;margin-bottom:10px}
   .view-mode-bar .vm-btn{padding:9px 16px;background:#fff;border:1.5px solid #DDD;border-radius:8px;font-size:13px;font-weight:700;color:#666;cursor:pointer;transition:all .12s;font-family:inherit}
@@ -283,6 +301,14 @@
       <span class="ss-divider"></span>
       <span class="ss-item ss-total">총 <strong id="ssTotal">0</strong>명</span>
     </div>
+    <!-- 신규 미검증 알림 배너 -->
+    <div class="htx-pending-banner" id="htxPendingBanner" style="display:none">
+      <span class="htx-pb-icon">🔐</span>
+      <span class="htx-pb-msg" id="htxPbMsg">신규 미검증 0건</span>
+      <button type="button" class="btn sm" id="btnHtxPending" style="background:#7B4F8C;color:#fff">📋 일괄 검증 추출</button>
+      <button type="button" class="btn ghost sm" id="btnHtxPendingDismiss" style="font-size:11px">✕</button>
+    </div>
+
     <!-- 보기 모드 (활성/휴지통) -->
     <div class="view-mode-bar" id="viewModeBar">
       <button type="button" class="vm-btn active" data-view="active">📋 활성 접수 <span id="vmActiveCount">(0)</span></button>
@@ -365,6 +391,7 @@
             <th>유형</th>
             <th>상태</th>
             <th>📎</th>
+            <th>홈택스 검증</th>
             <th style="min-width:280px">메모</th>
           </tr>
         </thead>
@@ -410,8 +437,9 @@
     <button type="button" class="modal-x" id="htxApplyClose" aria-label="닫기">×</button>
     <h3 style="margin:0 0 8px">📥 홈택스 검증 결과 적용</h3>
     <p style="font-size:13px;color:#666;margin:0 0 12px">Claude가 반환한 결과 JSON을 붙여넣고 [적용]을 누르면 각 행의 메모란에 검증 결과가 자동 추가됩니다.</p>
-    <p style="font-size:11.5px;color:#888;margin:0 0 8px">예상 형식: <code style="font-size:11px">[{"id":"...", "result":"✓ 개인 ID 정상"}, ...]</code></p>
-    <textarea id="htxApplyJson" class="htx-json" rows="14" placeholder='[{"id":"...","result":"✓ 개인 ID 정상"}, ...]'></textarea>
+    <p style="font-size:11.5px;color:#888;margin:0 0 8px">예상 형식: <code style="font-size:11px">[{"id":"...", "htx_status":"verified_personal"}, ...]</code></p>
+    <p style="font-size:11.5px;color:#666;margin:0 0 8px">상태값: <strong>verified_personal</strong>(개인ID 확인) · <strong>error_credentials</strong>(ID/PW 오류) · <strong>error_corporate</strong>(개인 ID 아님) · <strong>pending_captcha</strong>(CAPTCHA로 미검증)</p>
+    <textarea id="htxApplyJson" class="htx-json" rows="14" placeholder='[{"id":"...","htx_status":"verified_personal"}, ...]'></textarea>
     <div class="htx-actions">
       <span id="htxApplyMsg" style="font-size:12px;color:#666"></span>
       <button class="btn ghost sm" id="htxApplyCancel">취소</button>
@@ -808,7 +836,11 @@ function renderList(){
       <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
 <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
       <td class="col-files">${it.file_count != null && it.file_count > 0 ? '<span class="file-badge">📎 ' + it.file_count + '</span>' : '<span style="color:#CCC">-</span>'}</td>
-      <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
+      <td class="col-htx">${htxStatusBadge(it.htx_status, it.userType)}</td>
+      <td class="col-memo-cell">
+        <input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" />
+        ${adminMemo ? `<button type="button" class="memo-copy-btn" data-copy-memo="${escapeHtml(adminMemo)}" title="메모 클립보드 복사">📋</button>` : ''}
+      </td>
     </tr>`;
   }).join('');
 
@@ -884,6 +916,7 @@ function renderList(){
   syncCheckAll();
   updateBulkBar();
   refreshStatusSummary();
+  refreshHtxPendingBanner();
 }
 
 function updateBulkBar(){
@@ -2514,6 +2547,21 @@ function moneyDigits(v){
   return String(v || '').replace(/[^\d]/g, '');
 }
 
+/* 홈택스 검증 상태 → 컬러 뱃지 */
+function htxStatusBadge(status, userType){
+  /* 기존(존재 고객) — 검증 불필요 */
+  if(userType === 'existing') return '<span style="color:#CCC;font-size:11px">불필요</span>';
+  const map = {
+    unverified:        { label:'⏳ 검증 대기',   cls:'htx-pending' },
+    verified_personal: { label:'✓ 개인ID 확인', cls:'htx-ok' },
+    error_credentials: { label:'✗ ID/PW 오류',  cls:'htx-err' },
+    error_corporate:   { label:'⚠ 개인ID 아님', cls:'htx-warn' },
+    pending_captcha:   { label:'🔐 CAPTCHA',    cls:'htx-captcha' }
+  };
+  const v = map[status || 'unverified'] || map.unverified;
+  return `<span class="htx-badge ${v.cls}">${v.label}</span>`;
+}
+
 function statusLabel(s){
   return ({
     pending:   '🟡 대기',
@@ -2812,24 +2860,41 @@ $('#htxApplyOk').addEventListener('click', async () => {
   catch(e){ $('#htxApplyMsg').textContent = '❌ JSON 형식 오류: ' + e.message; return; }
   if(!Array.isArray(arr) || arr.length === 0){ $('#htxApplyMsg').textContent = '❌ 배열 형식이어야 합니다'; return; }
 
-  const now = new Date();
-  const ts = now.toISOString().slice(0,10) + ' ' + now.toTimeString().slice(0,5);
   let success = 0, fail = 0, skip = 0;
   $('#htxApplyMsg').textContent = `처리 중… 0/${arr.length}`;
 
+  /* htx_status별 라벨 + 실패 시 메모 자동 작성 */
+  const STATUS_LABEL = {
+    verified_personal: '개인ID 확인',
+    error_credentials: 'ID or PW 오류',
+    error_corporate:   '개인 ID 아님',
+    pending_captcha:   'CAPTCHA로 미검증'
+  };
+
   for(let i = 0; i < arr.length; i++){
     const r = arr[i];
-    if(!r.id || !r.result){ skip++; continue; }
+    if(!r.id || !r.htx_status){ skip++; continue; }
     const li = state.items.find(x => x.id === r.id);
     if(!li){ fail++; continue; }
-    const newLine = `[홈택스검증 ${ts}] ${r.result}`;
-    const merged = li.admin_memo ? `${newLine}\n${li.admin_memo}` : newLine;
+
+    const patch = { htx_status: r.htx_status };
+    /* 실패 케이스 (개인ID 아님 or ID/PW 오류)는 고객 안내 메시지 자동 작성 */
+    if(r.htx_status === 'error_credentials' || r.htx_status === 'error_corporate'){
+      const target = li.target_name || '고객';
+      const errMsg = STATUS_LABEL[r.htx_status] || '오류';
+      const customerMsg = `${target}님 홈택스 ${errMsg} - 다시 확인 부탁드립니다`;
+      /* 기존 메모 보존 + 새 메시지 위로 추가 */
+      patch.admin_memo = li.admin_memo
+        ? `${customerMsg}\n${li.admin_memo}`
+        : customerMsg;
+    }
     try {
       await api(`/api/item/${r.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ admin_memo: merged })
+        body: JSON.stringify(patch)
       });
-      li.admin_memo = merged;
+      li.htx_status = r.htx_status;
+      if(patch.admin_memo) li.admin_memo = patch.admin_memo;
       success++;
     } catch(err){
       console.warn('htx apply patch failed', r.id, err);
@@ -2839,7 +2904,7 @@ $('#htxApplyOk').addEventListener('click', async () => {
   }
   renderList();
   $('#htxApplyMsg').textContent = `✓ 적용 ${success}건 / 실패 ${fail}건 / 스킵 ${skip}건`;
-  toast(`✓ 메모 ${success}건 업데이트`, 3000);
+  toast(`✓ 검증결과 ${success}건 적용`, 3000);
   setTimeout(() => $('#htxApplyModal').classList.remove('active'), 1500);
 });
 
@@ -2885,6 +2950,66 @@ $('#btnClearFilter').addEventListener('click', () => {
   $('#sortKey').value = 'submitted_desc';
   state.currentPage = 1;
   renderList();
+});
+
+/* 신규 미검증 배너 — 신규+미검증 자동 카운트, 클릭 시 자동 선택+추출 */
+function refreshHtxPendingBanner(){
+  const banner = $('#htxPendingBanner');
+  if(!banner) return;
+  /* 활성(휴지통 제외) + 신규 + 미검증(unverified or 없음) */
+  const pending = state.items.filter(it =>
+    !it.deleted_at &&
+    it.userType === 'new' &&
+    (!it.htx_status || it.htx_status === 'unverified')
+  );
+  if(pending.length === 0 || sessionStorage.getItem('htxBannerDismissed')){
+    banner.style.display = 'none';
+    return;
+  }
+  banner.style.display = 'flex';
+  $('#htxPbMsg').textContent = `🔴 신규 미검증 ${pending.length}건 — 일괄 검증 추출하세요`;
+}
+$('#btnHtxPendingDismiss').addEventListener('click', () => {
+  sessionStorage.setItem('htxBannerDismissed', '1');
+  $('#htxPendingBanner').style.display = 'none';
+});
+$('#btnHtxPending').addEventListener('click', async () => {
+  const pending = state.items.filter(it =>
+    !it.deleted_at &&
+    it.userType === 'new' &&
+    (!it.htx_status || it.htx_status === 'unverified')
+  );
+  if(pending.length === 0){ toast('미검증 신규 항목 없음', 2000); return; }
+  /* 자동 선택 → 추출 흐름 */
+  state.selected.clear();
+  pending.forEach(it => state.selected.add(it.id));
+  if(!state.privKey){
+    pendingHtxExtract = true;
+    pendingExport = false; pendingWordExport = false; pendingXlsxExport = false;
+    pendingDecryptCardId = null;
+    $('#decryptErr').textContent = '';
+    $('#privFile').value = ''; $('#privPwd').value = '';
+    $('#decryptModal').classList.add('active');
+    setTimeout(()=>$('#privFile').focus(), 100);
+    return;
+  }
+  await runHtxExtract();
+});
+
+/* 메모 복사 버튼 (위임) */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.memo-copy-btn');
+  if(!btn) return;
+  e.stopPropagation();
+  const text = btn.dataset.copyMemo || '';
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋';
+      btn.classList.remove('copied');
+    }, 1200);
+  }).catch(() => toast('복사 실패', 2000));
 });
 
 /* 페이지네이션 컨트롤 */
