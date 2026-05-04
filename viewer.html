@@ -84,7 +84,7 @@
   .status-select.saving{border-color:#E8A82C;background:#FFFCEB}
   .status-select.saved{border-color:#4E8B3A;background:#F0F7EA}
   .admin-input{width:100%;min-width:80px;padding:5px 7px;border:1.5px solid #DDD;border-radius:6px;font-size:12px;background:#fff;font-family:inherit}
-  .admin-input.admin-memo{min-width:140px}
+  .admin-input.admin-memo{min-width:280px;width:100%}
   .admin-input.admin-money{min-width:96px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600;letter-spacing:.3px;font-family:Consolas,Menlo,'Apple SD Gothic Neo',monospace;color:#1A4480}
   .admin-input.admin-money:not(:placeholder-shown){background:#F8FAFE}
   .admin-input:focus{outline:none;border-color:#2D5F3F;background:#FFFEF5}
@@ -271,12 +271,8 @@
     <div class="status-summary" id="statusSummary">
       <span class="ss-item ss-pending"><span class="ss-dot"></span>대기 <strong id="ssPending">0</strong>명</span>
       <span class="ss-item ss-revising"><span class="ss-dot"></span>수정중 <strong id="ssRevising">0</strong>명</span>
-      <span class="ss-item ss-revised"><span class="ss-dot"></span>수정완료 <strong id="ssRevised">0</strong>명</span>
       <span class="ss-item ss-completed"><span class="ss-dot"></span>출력완료 <strong id="ssCompleted">0</strong>명</span>
       <span class="ss-item ss-filed"><span class="ss-dot"></span>신고완료 <strong id="ssFiled">0</strong>명</span>
-      <span class="ss-item ss-invoiced"><span class="ss-dot"></span>세금계산서 <strong id="ssInvoiced">0</strong>명</span>
-      <span class="ss-item ss-paid"><span class="ss-dot"></span>입금완료 <strong id="ssPaid">0</strong>명</span>
-      <span class="ss-item ss-finalized"><span class="ss-dot"></span>납부서·후기 <strong id="ssFinalized">0</strong>명</span>
       <span class="ss-item ss-canceled"><span class="ss-dot"></span>접수취소 <strong id="ssCanceled">0</strong>명</span>
       <span class="ss-divider"></span>
       <span class="ss-item ss-total">총 <strong id="ssTotal">0</strong>명</span>
@@ -306,12 +302,8 @@
         <option value="all">상태 전체</option>
         <option value="pending">🟡 대기</option>
         <option value="revising">🟠 수정중</option>
-        <option value="revised">🟣 수정완료</option>
         <option value="completed">🟢 출력완료</option>
         <option value="filed">🔵 신고완료</option>
-        <option value="invoiced">🟤 세금계산서 발급</option>
-        <option value="paid">💰 입금완료</option>
-        <option value="finalized">✨ 납부서 전달 및 후기요청</option>
         <option value="canceled">⚫ 접수취소</option>
       </select>
       <span class="fb-divider"></span>
@@ -365,9 +357,7 @@
             <th>유형</th>
             <th>상태</th>
             <th>📎</th>
-            <th>수수료</th>
-            <th>부가가치세</th>
-            <th>메모</th>
+            <th style="min-width:280px">메모</th>
           </tr>
         </thead>
         <tbody id="rows">
@@ -532,7 +522,7 @@ const state = {
 };
 
 /* 정렬 인덱스 (진행순 정의) */
-const STATUS_ORDER = { pending:0, revising:1, revised:2, completed:3, filed:4, invoiced:5, paid:6, finalized:7, canceled:8 };
+const STATUS_ORDER = { pending:0, revising:1, completed:2, filed:3, canceled:4 };
 const BIZ_ORDER    = { self:0, free:1, rent:2, etc:3 };
 const USERTYPE_ORDER = { new:0, existing:1 };
 function getCmpFn(sortKey){
@@ -776,8 +766,6 @@ function renderList(){
       <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
 <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
       <td class="col-files">${it.file_count != null && it.file_count > 0 ? '<span class="file-badge">📎 ' + it.file_count + '</span>' : '<span style="color:#CCC">-</span>'}</td>
-      <td><input type="text" class="admin-input admin-money admin-fee" data-id="${escapeHtml(it.id)}" data-field="admin_fee" value="${escapeHtml(formatMoney(adminFee))}" placeholder="0" /></td>
-      <td><input type="text" class="admin-input admin-money admin-vat" data-id="${escapeHtml(it.id)}" data-field="admin_vat" value="${escapeHtml(formatMoney(adminVat))}" placeholder="0" /></td>
       <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
     </tr>`;
   }).join('');
@@ -876,7 +864,7 @@ function syncCheckAll(){
 
 /* 상태 집계 카운터 — items 배열 기준 */
 function refreshStatusSummary(){
-  const counts = { pending:0, revising:0, revised:0, completed:0, filed:0, invoiced:0, paid:0, finalized:0, canceled:0 };
+  const counts = { pending:0, revising:0, completed:0, filed:0, canceled:0 };
   /* 활성 항목만 집계 (휴지통 제외) */
   for(const it of state.items){
     if(it.deleted_at) continue;
@@ -887,12 +875,8 @@ function refreshStatusSummary(){
   const set = (id, v) => { const el = $(id); if(el) el.textContent = v; };
   set('#ssPending',   counts.pending);
   set('#ssRevising',  counts.revising);
-  set('#ssRevised',   counts.revised);
   set('#ssCompleted', counts.completed);
   set('#ssFiled',     counts.filed);
-  set('#ssInvoiced',  counts.invoiced);
-  set('#ssPaid',      counts.paid);
-  set('#ssFinalized', counts.finalized);
   set('#ssCanceled',  counts.canceled);
   set('#ssTotal',     total);
 }
@@ -2505,12 +2489,8 @@ function statusOptions(){
   return [
     { v:'pending',   label:'🟡 대기' },
     { v:'revising',  label:'🟠 수정중' },
-    { v:'revised',   label:'🟣 수정완료' },
     { v:'completed', label:'🟢 출력완료' },
     { v:'filed',     label:'🔵 신고완료' },
-    { v:'invoiced',  label:'🟤 세금계산서 발급' },
-    { v:'paid',      label:'💰 입금완료' },
-    { v:'finalized', label:'✨ 납부서 전달 및 후기요청' },
     { v:'canceled',  label:'⚫ 접수취소' }
   ];
 }
@@ -2771,7 +2751,7 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('대시보드');
     /* 헤더 */
-    const headers = ['접수일','신고대상자','연락처','업종','유형','상태','수수료(원)','부가가치세(원)','메모'];
+    const headers = ['접수일','신고대상자','연락처','업종','유형','상태','메모'];
     ws.addRow(headers);
     const headerRow = ws.getRow(1);
     headerRow.font = { bold:true, color:{argb:'FFFFFFFF'} };
@@ -2782,8 +2762,6 @@ $('#btnDashXlsx').addEventListener('click', async () => {
     for(const it of state.items){
       const userTxt = it.userType === 'new' ? '신규' : (it.userType === 'existing' ? '기존' : '');
       const statusTxt = ({pending:'대기',revising:'수정중',revised:'수정완료',completed:'출력완료',filed:'신고완료',invoiced:'세금계산서 발급',paid:'입금완료',finalized:'납부서 전달 및 후기요청',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
-      const feeNum = parseInt(moneyDigits(it.admin_fee), 10);
-      const vatNum = parseInt(moneyDigits(it.admin_vat), 10);
       const row = ws.addRow([
         fmtDate(it.submitted_at),
         it.target_name || '',
@@ -2791,28 +2769,21 @@ $('#btnDashXlsx').addEventListener('click', async () => {
         bizTypeLabel(it.bizType),
         userTxt,
         statusTxt,
-        Number.isFinite(feeNum) ? feeNum : '',
-        Number.isFinite(vatNum) ? vatNum : '',
         it.admin_memo || ''
       ]);
       row.alignment = { vertical:'middle', wrapText:true };
-      /* 회계 서식 (₩#,##0) — G(7)/H(8) */
-      row.getCell(7).numFmt = '#,##0';
-      row.getCell(8).numFmt = '#,##0';
-      row.getCell(7).alignment = { vertical:'middle', horizontal:'right' };
-      row.getCell(8).alignment = { vertical:'middle', horizontal:'right' };
     }
     /* 컬럼 너비 */
-    const widths = [18, 14, 14, 12, 8, 12, 14, 14, 32];
+    const widths = [18, 14, 14, 12, 8, 12, 50];
     widths.forEach((w, i) => { ws.getColumn(i+1).width = w; });
     /* 집계 (하단) */
-    const counts = { pending:0, revising:0, revised:0, completed:0, filed:0, invoiced:0, paid:0, finalized:0, canceled:0 };
+    const counts = { pending:0, revising:0, completed:0, filed:0, canceled:0 };
     for(const it of state.items){ const s = it.status || 'pending'; if(counts[s] !== undefined) counts[s]++; }
     ws.addRow([]);
     const summaryRow = ws.addRow([
-      `대기 ${counts.pending} · 수정중 ${counts.revising} · 수정완료 ${counts.revised} · 출력완료 ${counts.completed} · 신고완료 ${counts.filed} · 세금계산서 ${counts.invoiced} · 입금완료 ${counts.paid} · 납부서·후기 ${counts.finalized} · 접수취소 ${counts.canceled}`,
+      `대기 ${counts.pending} · 수정중 ${counts.revising} · 출력완료 ${counts.completed} · 신고완료 ${counts.filed} · 접수취소 ${counts.canceled}`,
       '', '', '', '', `총 ${state.items.length}명`,
-      '', '', ''
+      ''
     ]);
     summaryRow.font = { bold:true };
     summaryRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF4F8EC'} };
