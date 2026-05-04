@@ -9,6 +9,8 @@
 <title>접수 관리 · 더나은세무회계</title>
 <!-- ExcelJS — 양식 .xlsx 보존 + 셀 값만 채워서 다운로드 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- JSZip — Excel 출력 버퍼의 잘못된 XML 속성 후처리용 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;padding:0;font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#1A1A1A;background:#F5F7F2;line-height:1.55;font-size:14px}
@@ -1827,13 +1829,57 @@ async function buildXlsxWorkbookMulti(submissions){
         masterWb.definedNames.model = [];
       }
     }
-    /* 시트별 print area도 제거 */
     masterWb.worksheets.forEach(ws => {
       try { if(ws.pageSetup) ws.pageSetup.printArea = undefined; } catch(_) {}
     });
   } catch(_){}
 
-  return await masterWb.xlsx.writeBuffer();
+  const rawBuf = await masterWb.xlsx.writeBuffer();
+  /* ExcelJS가 생성하는 잘못된 XML 속성을 후처리로 제거 (Excel이 거부하는 값들) */
+  return await sanitizeXlsxBuffer(rawBuf);
+}
+
+/* xlsx 버퍼 후처리 — Excel이 거부하는 XML 속성 제거 */
+async function sanitizeXlsxBuffer(buf){
+  if(typeof JSZip === 'undefined'){
+    console.warn('[xlsx 후처리 건너뜀] JSZip 미로드');
+    return buf;
+  }
+  try {
+    const zip = await JSZip.loadAsync(buf);
+    const sheetFiles = Object.keys(zip.files).filter(p => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
+    for(const path of sheetFiles){
+      const xml = await zip.file(path).async('string');
+      let cleaned = xml;
+      /* (1) horizontalDpi/verticalDpi="4294967295" — uint32 max, Excel 거부 → 제거 */
+      cleaned = cleaned.replace(/\s+horizontalDpi="4294967295"/g, '');
+      cleaned = cleaned.replace(/\s+verticalDpi="4294967295"/g, '');
+      /* (2) <sheetFormatPr ... customHeight="1" ...> — customHeight는 row 전용 속성 → 제거 */
+      cleaned = cleaned.replace(/(<sheetFormatPr[^>]*?)\s+customHeight="1"/g, '$1');
+      /* (3) x14ac:dyDescent — 모든 비정상 값을 0.25로 통일 (정상 범위 0.05~1.0) */
+      cleaned = cleaned.replace(/x14ac:dyDescent="[^"]*"/g, 'x14ac:dyDescent="0.25"');
+      if(cleaned !== xml){
+        zip.file(path, cleaned);
+      }
+    }
+    /* workbook.xml의 definedName 잔재 제거 (혹시 남아있을 경우) */
+    if(zip.file('xl/workbook.xml')){
+      const wbXml = await zip.file('xl/workbook.xml').async('string');
+      const cleanedWb = wbXml.replace(/<definedNames>[\s\S]*?<\/definedNames>/g, '');
+      if(cleanedWb !== wbXml){
+        zip.file('xl/workbook.xml', cleanedWb);
+      }
+    }
+    const out = await zip.generateAsync({
+      type: 'arraybuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+    return out;
+  } catch(err){
+    console.warn('[xlsx 후처리 실패, 원본 반환]', err);
+    return buf;
+  }
 }
 
 /* 셀에 값 + wrapText + 폰트 크기 16 (입력 데이터만, 라벨은 양식 그대로 유지) */
