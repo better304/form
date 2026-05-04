@@ -1818,6 +1818,21 @@ async function buildXlsxWorkbookMulti(submissions){
     await appendTemplateSheetForSubmission(masterWb, sub, name);
   }
 
+  /* defined names(Print_Area 등) 제거 — 시트명 변경 시 ExcelJS가 잘못된 형식으로 기록해 Excel 손상 유발 */
+  try {
+    if(masterWb.definedNames){
+      if(typeof masterWb.definedNames.removeAll === 'function'){
+        masterWb.definedNames.removeAll();
+      } else if(masterWb.definedNames.model){
+        masterWb.definedNames.model = [];
+      }
+    }
+    /* 시트별 print area도 제거 */
+    masterWb.worksheets.forEach(ws => {
+      try { if(ws.pageSetup) ws.pageSetup.printArea = undefined; } catch(_) {}
+    });
+  } catch(_){}
+
   return await masterWb.xlsx.writeBuffer();
 }
 
