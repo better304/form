@@ -122,6 +122,12 @@
   .card-modal-card .detail-card{box-shadow:none;border:none;padding:0}
   .modal-x{position:absolute;top:10px;right:14px;width:32px;height:32px;border:none;background:#F5F5F5;color:#666;font-size:20px;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2}
   .modal-x:hover{background:#FEE;color:#D33}
+  /* 홈택스 검증 모달 */
+  .htx-warn{background:#FFF5E0;border-left:4px solid #E89A00;border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;color:#7A4A00}
+  .htx-json{width:100%;padding:10px 12px;border:1.5px solid #BFBFBF;border-radius:8px;font-family:Consolas,Menlo,monospace;font-size:11.5px;line-height:1.5;color:#1A4480;background:#F8FAFE;resize:vertical;min-height:220px}
+  .htx-json:focus{outline:none;border-color:#7B4F8C;background:#fff}
+  .htx-actions{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .htx-actions span{margin-right:auto}
   /* 첨부 파일 그리드 (썸네일 형태) */
   .file-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:10px;margin-top:8px}
   .file-grid-item{position:relative;background:#FAFBF7;border:1px solid #E5E8DD;border-radius:10px;padding:8px;cursor:pointer;transition:all .12s;display:flex;flex-direction:column;gap:6px}
@@ -342,6 +348,8 @@
       <button class="btn sm" id="btnBulkExport" style="background:#0c7c4a;color:#fff">📊 CSV</button>
       <button class="btn sm" id="btnBulkXlsx" style="background:#107C41;color:#fff">📗 Excel 보고서</button>
       <button class="btn sm" id="btnBulkWord" style="background:#1f4e79;color:#fff">📄 Word 보고서</button>
+      <button class="btn sm" id="btnBulkHtxExtract" style="background:#7B4F8C;color:#fff" title="선택 항목의 홈택스 ID/PW를 복호화해 검증용 JSON으로 추출">🔐 홈택스 검증</button>
+      <button class="btn ghost sm" id="btnBulkHtxApply" title="홈택스 검증 결과 JSON을 붙여넣어 메모란에 일괄 반영" style="border-color:#7B4F8C;color:#7B4F8C">📥 결과 적용</button>
       <button class="btn ghost sm" id="btnBulkClear">선택 해제</button>
       <span style="margin-left:auto;font-size:11px;color:#888">행 체크박스로 선택 후 액션 실행</span>
     </div>
@@ -375,6 +383,40 @@
   <div class="modal-card card-modal-card" role="document">
     <button type="button" class="modal-x" id="cardModalClose" aria-label="닫기">×</button>
     <div id="detailsArea" class="details-area"></div>
+  </div>
+</div>
+
+<!-- 홈택스 검증 — 추출 모달 -->
+<div id="htxExtractModal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-card" style="max-width:780px">
+    <button type="button" class="modal-x" id="htxExtractClose" aria-label="닫기">×</button>
+    <h3 style="margin:0 0 8px">🔐 홈택스 검증용 데이터</h3>
+    <p style="font-size:13px;color:#666;margin:0 0 12px">아래 JSON을 복사해서 채팅에 붙여넣어 주세요. Claude가 한 건씩 자동 로그인해서 검증합니다.</p>
+    <div class="htx-warn">
+      ⚠ 이 JSON은 <strong>복호화된 ID/비밀번호 + 주민번호 일부</strong>를 포함합니다. 검증 외 용도로 공유하지 마세요.
+    </div>
+    <textarea id="htxExtractJson" class="htx-json" rows="14" readonly></textarea>
+    <div class="htx-actions">
+      <span id="htxExtractCount" style="font-size:12px;color:#666"></span>
+      <button class="btn ghost sm" id="htxExtractCopy">📋 클립보드 복사</button>
+      <button class="btn sm" id="htxExtractCloseBtn" style="background:#7B4F8C;color:#fff">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 홈택스 검증 — 결과 적용 모달 -->
+<div id="htxApplyModal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-card" style="max-width:780px">
+    <button type="button" class="modal-x" id="htxApplyClose" aria-label="닫기">×</button>
+    <h3 style="margin:0 0 8px">📥 홈택스 검증 결과 적용</h3>
+    <p style="font-size:13px;color:#666;margin:0 0 12px">Claude가 반환한 결과 JSON을 붙여넣고 [적용]을 누르면 각 행의 메모란에 검증 결과가 자동 추가됩니다.</p>
+    <p style="font-size:11.5px;color:#888;margin:0 0 8px">예상 형식: <code style="font-size:11px">[{"id":"...", "result":"✓ 개인 ID 정상"}, ...]</code></p>
+    <textarea id="htxApplyJson" class="htx-json" rows="14" placeholder='[{"id":"...","result":"✓ 개인 ID 정상"}, ...]'></textarea>
+    <div class="htx-actions">
+      <span id="htxApplyMsg" style="font-size:12px;color:#666"></span>
+      <button class="btn ghost sm" id="htxApplyCancel">취소</button>
+      <button class="btn sm" id="htxApplyOk" style="background:#7B4F8C;color:#fff">메모에 적용</button>
+    </div>
   </div>
 </div>
 <!-- 호환성 위해 숨김 플레이스홀더 (기존 코드 참조 보존) -->
@@ -849,7 +891,7 @@ function updateBulkBar(){
   $('#bulkCount').textContent = `${n}건 선택`;
   $('#bulkBar').classList.toggle('has-selection', n > 0);
   /* 선택 0건일 때 액션 버튼 비활성화 */
-  ['#btnBulkOpen','#btnBulkExport','#btnBulkXlsx','#btnBulkWord','#btnBulkClear'].forEach(s => {
+  ['#btnBulkOpen','#btnBulkExport','#btnBulkXlsx','#btnBulkWord','#btnBulkHtxExtract','#btnBulkClear'].forEach(s => {
     const b = $(s); if(b) b.disabled = n === 0;
   });
 }
@@ -2643,6 +2685,10 @@ $('#btnUnlock').addEventListener('click', async () => {
       pendingXlsxExport = false;
       await runXlsxExport();
     }
+    if(pendingHtxExtract){
+      pendingHtxExtract = false;
+      await runHtxExtract();
+    }
   }catch(err){
     $('#decryptErr').textContent = err.message;
   }finally{
@@ -2683,6 +2729,119 @@ document.addEventListener('keydown', e => {
  * ════════════════════════════════════════════════════ */
 $('#search').addEventListener('input', () => renderList());
 $('#btnRefresh').addEventListener('click', () => loadList());
+
+/* ═════════ 홈택스 검증 — 추출 ═════════ */
+let pendingHtxExtract = false;
+$('#btnBulkHtxExtract').addEventListener('click', async () => {
+  if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
+  if(!state.privKey){
+    pendingHtxExtract = true;
+    pendingExport = false; pendingWordExport = false; pendingXlsxExport = false;
+    pendingDecryptCardId = null;
+    $('#decryptErr').textContent = '';
+    $('#privFile').value = ''; $('#privPwd').value = '';
+    $('#decryptModal').classList.add('active');
+    setTimeout(()=>$('#privFile').focus(), 100);
+    return;
+  }
+  await runHtxExtract();
+});
+
+async function runHtxExtract(){
+  const ids = state.items.filter(it => state.selected.has(it.id)).map(it => it.id);
+  if(ids.length === 0) return;
+  toast(`복호화 중… (0/${ids.length})`, 60000);
+  const out = [];
+  let done = 0;
+  for(const id of ids){
+    try{
+      const data = await getSubmissionTextOnly(id);
+      const pd = (data.item.public_data) || {};
+      const s  = data.sensitive || {};
+      const rrnRaw = (s.rrn || '').replace(/[^0-9]/g, '');
+      out.push({
+        id: id,
+        target: pd.targetName || '',
+        hometax_id: s.hometax_id || '',
+        hometax_pw: s.hometax_pw || '',
+        rrn_front: rrnRaw.slice(0, 6),       /* YYMMDD */
+        rrn_first: rrnRaw.slice(6, 7)        /* 성별 자리 */
+      });
+    }catch(err){
+      console.warn('htx extract failed for', id, err);
+      out.push({ id, target: '?', hometax_id:'', hometax_pw:'', rrn_front:'', rrn_first:'', error:String(err.message||err) });
+    }
+    done++;
+    if(done % 3 === 0) toast(`복호화 중… (${done}/${ids.length})`, 60000);
+  }
+  $('#htxExtractJson').value = JSON.stringify(out, null, 2);
+  $('#htxExtractCount').textContent = `${out.length}건 추출됨`;
+  $('#htxExtractModal').classList.add('active');
+  toast(`✓ ${out.length}건 추출 완료`, 2000);
+}
+
+$('#htxExtractCopy').addEventListener('click', async () => {
+  const ta = $('#htxExtractJson');
+  ta.select();
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    toast('✓ 클립보드에 복사됨', 2000);
+  } catch(_){
+    document.execCommand('copy');
+    toast('복사됨 (수동)', 2000);
+  }
+});
+$('#htxExtractClose').addEventListener('click', () => $('#htxExtractModal').classList.remove('active'));
+$('#htxExtractCloseBtn').addEventListener('click', () => $('#htxExtractModal').classList.remove('active'));
+
+/* ═════════ 홈택스 검증 — 결과 적용 ═════════ */
+$('#btnBulkHtxApply').addEventListener('click', () => {
+  $('#htxApplyJson').value = '';
+  $('#htxApplyMsg').textContent = '';
+  $('#htxApplyModal').classList.add('active');
+  setTimeout(() => $('#htxApplyJson').focus(), 100);
+});
+$('#htxApplyClose').addEventListener('click', () => $('#htxApplyModal').classList.remove('active'));
+$('#htxApplyCancel').addEventListener('click', () => $('#htxApplyModal').classList.remove('active'));
+
+$('#htxApplyOk').addEventListener('click', async () => {
+  const text = $('#htxApplyJson').value.trim();
+  if(!text){ $('#htxApplyMsg').textContent = 'JSON을 붙여넣으세요'; return; }
+  let arr;
+  try { arr = JSON.parse(text); }
+  catch(e){ $('#htxApplyMsg').textContent = '❌ JSON 형식 오류: ' + e.message; return; }
+  if(!Array.isArray(arr) || arr.length === 0){ $('#htxApplyMsg').textContent = '❌ 배열 형식이어야 합니다'; return; }
+
+  const now = new Date();
+  const ts = now.toISOString().slice(0,10) + ' ' + now.toTimeString().slice(0,5);
+  let success = 0, fail = 0, skip = 0;
+  $('#htxApplyMsg').textContent = `처리 중… 0/${arr.length}`;
+
+  for(let i = 0; i < arr.length; i++){
+    const r = arr[i];
+    if(!r.id || !r.result){ skip++; continue; }
+    const li = state.items.find(x => x.id === r.id);
+    if(!li){ fail++; continue; }
+    const newLine = `[홈택스검증 ${ts}] ${r.result}`;
+    const merged = li.admin_memo ? `${newLine}\n${li.admin_memo}` : newLine;
+    try {
+      await api(`/api/item/${r.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ admin_memo: merged })
+      });
+      li.admin_memo = merged;
+      success++;
+    } catch(err){
+      console.warn('htx apply patch failed', r.id, err);
+      fail++;
+    }
+    $('#htxApplyMsg').textContent = `처리 중… ${i+1}/${arr.length}`;
+  }
+  renderList();
+  $('#htxApplyMsg').textContent = `✓ 적용 ${success}건 / 실패 ${fail}건 / 스킵 ${skip}건`;
+  toast(`✓ 메모 ${success}건 업데이트`, 3000);
+  setTimeout(() => $('#htxApplyModal').classList.remove('active'), 1500);
+});
 
 /* 보기 모드 토글 (활성/휴지통) */
 $$('.vm-btn').forEach(btn => btn.addEventListener('click', () => {
