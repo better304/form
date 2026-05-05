@@ -11,6 +11,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <!-- JSZip — Excel 출력 버퍼의 잘못된 XML 속성 후처리용 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- pdf-lib — 첨부파일 PDF 합치기용 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
  *{box-sizing:border-box}
  html,body{margin:0;padding:0;font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#1A1A1A;background:#F5F7F2;line-height:1.55;font-size:14px}
@@ -357,6 +359,7 @@
  <button class="btn sm" id="btnBulkWord" style="background:#1f4e79;color:#fff">Word 보고서</button>
  <button class="btn sm" id="btnBulkHtxExtract" style="background:#7B4F8C;color:#fff" title="선택 항목 ID/PW 복호화 → 클립보드 복사">홈택스 검증 추출</button>
  <button class="btn ghost sm" id="btnBulkHtxApply" style="border-color:#7B4F8C;color:#7B4F8C" title="로컬 Node 스크립트 결과 JSON 적용">검증 결과 적용</button>
+ <button class="btn sm" id="btnBulkPdfMerge" style="background:#B91C1C;color:#fff" title="첨부파일을 1개 PDF로 합쳐서 다운로드 (선택 행마다 1파일)">PDF 합쳐 다운로드</button>
  <button class="btn ghost sm" id="btnBulkClear">선택 해제</button>
  <span style="margin-left:auto;font-size:11px;color:#888">행 체크박스로 선택 후 액션 실행</span>
  </div>
@@ -372,7 +375,6 @@
  <th>유형</th>
  <th>상태</th>
  <th>첨부</th>
- <th>홈택스 검증</th>
  <th style="min-width:280px">메모</th>
  </tr>
  </thead>
@@ -816,7 +818,6 @@ function renderList(){
  <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
 <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
  <td class="col-files">${it.file_count != null && it.file_count > 0 ? '<span class="file-badge">' + it.file_count + '</span>' : '<span style="color:#CCC">-</span>'}</td>
- <td class="col-htx">${htxStatusBadge(it.htx_status, it.userType)}</td>
  <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
  </tr>`;
  }).join('');
@@ -900,7 +901,7 @@ function updateBulkBar(){
  $('#bulkCount').textContent = `${n}건 선택`;
  $('#bulkBar').classList.toggle('has-selection', n > 0);
  /* 선택 0건일 때 액션 버튼 비활성화 */
- ['#btnBulkOpen','#btnBulkExport','#btnBulkXlsx','#btnBulkWord','#btnBulkHtxExtract','#btnBulkClear'].forEach(s => {
+ ['#btnBulkOpen','#btnBulkExport','#btnBulkXlsx','#btnBulkWord','#btnBulkHtxExtract','#btnBulkPdfMerge','#btnBulkClear'].forEach(s => {
  const b = $(s); if(b) b.disabled = n === 0;
  });
 }
@@ -2706,6 +2707,10 @@ $('#btnUnlock').addEventListener('click', async () => {
  pendingHtxExtract = false;
  await runHtxExtract();
  }
+ if(pendingPdfMerge){
+ pendingPdfMerge = false;
+ await runPdfMerge();
+ }
  }catch(err){
  $('#decryptErr').textContent = err.message;
  }finally{
@@ -2790,6 +2795,175 @@ $('#btnClearFilter').addEventListener('click', () => {
  state.currentPage = 1;
  renderList();
 });
+
+/* ═════════ PDF 일괄 합치기 ═════════ */
+let pendingPdfMerge = false;
+$('#btnBulkPdfMerge').addEventListener('click', async () => {
+  if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
+  if(typeof PDFLib === 'undefined'){
+    toast('pdf-lib 로드 실패. 새로고침 후 재시도', 5000); return;
+  }
+  if(!state.privKey){
+    pendingPdfMerge = true;
+    pendingExport = false; pendingWordExport = false; pendingXlsxExport = false; pendingHtxExtract = false;
+    pendingDecryptCardId = null;
+    $('#decryptErr').textContent = '';
+    $('#privFile').value = ''; $('#privPwd').value = '';
+    $('#decryptModal').classList.add('active');
+    setTimeout(()=>$('#privFile').focus(), 100);
+    return;
+  }
+  await runPdfMerge();
+});
+
+async function runPdfMerge(){
+  const ids = state.items.filter(it => state.selected.has(it.id)).map(it => it.id);
+  if(ids.length === 0) return;
+
+  let success = 0, fail = 0, skipped = 0;
+  toast(`PDF 합치기 시작… (0/${ids.length})`, 60000);
+
+  for(let i = 0; i < ids.length; i++){
+    const id = ids[i];
+    try {
+      toast(`PDF 합치기… (${i+1}/${ids.length})`, 60000);
+      const pack = await getPdfMergeData(id);
+      if(!pack){ fail++; continue; }
+      if(pack.files.length === 0){
+        skipped++;
+        console.warn('No attachments for', id);
+        continue;
+      }
+      const pdfBytes = await buildPdfFromFiles(pack.files);
+      const safeName = sanitizeFilename(`${pack.targetName}_${pack.rrn6}_연말정산`);
+      downloadBytes(pdfBytes, `${safeName}.pdf`, 'application/pdf');
+      success++;
+      /* 연속 다운로드 방지 — 짧은 대기 */
+      await new Promise(r => setTimeout(r, 400));
+    } catch(err){
+      console.error('PDF merge failed for', id, err);
+      fail++;
+    }
+  }
+  toast(`PDF 다운로드 완료 — 성공 ${success} / 첨부없음 ${skipped} / 실패 ${fail}`, 5000);
+}
+
+function sanitizeFilename(name){
+  return String(name || 'unknown').replace(/[\\/:*?"<>|\r\n\t]/g, '_').slice(0, 100);
+}
+
+function downloadBytes(bytes, filename, mime){
+  const blob = new Blob([bytes], { type: mime || 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+}
+
+/* 한 건 — public_files + encrypted.files 모두 모아서 PDF 빌드용 데이터 반환 */
+async function getPdfMergeData(id){
+  /* 캐시 활용 */
+  const ctx = cards.get(id);
+  let item, sensitive, encryptedFiles = [];
+  if(ctx && ctx.item && ctx.decrypted){
+    item = ctx.item;
+    sensitive = ctx.decrypted.sensitive || {};
+    encryptedFiles = (ctx.decrypted.files || []).map(f => ({
+      docKey: f.docKey, name: f.name, mime: f.mime, blob: f.blob
+    }));
+  } else {
+    /* API 호출 + 복호화 */
+    const r = await api(`/api/item/${id}`);
+    item = r.item;
+    const enc = item.encrypted;
+    if(!enc){ throw new Error('encrypted 데이터 없음'); }
+    const aesRaw = await crypto.subtle.decrypt({ name:'RSA-OAEP' }, state.privKey, b64ToBytes(enc.aes_key));
+    const aesKey = await crypto.subtle.importKey('raw', aesRaw, { name:'AES-GCM', length:256 }, false, ['decrypt']);
+    const textBuf = await crypto.subtle.decrypt({ name:'AES-GCM', iv: b64ToBytes(enc.iv_text) }, aesKey, b64ToBytes(enc.text));
+    sensitive = JSON.parse(new TextDecoder().decode(textBuf));
+    /* 구버전 encrypted.files 복호화 */
+    for(const f of (enc.files || [])){
+      const buf = await crypto.subtle.decrypt({ name:'AES-GCM', iv: b64ToBytes(f.iv) }, aesKey, b64ToBytes(f.data));
+      encryptedFiles.push({
+        docKey: f.docKey, name: f.name, mime: f.mime,
+        blob: new Blob([buf], { type: f.mime || 'application/octet-stream' })
+      });
+    }
+  }
+
+  const pd = item.public_data || {};
+  const targetName = pd.targetName || 'unknown';
+  const rrnRaw = (sensitive.rrn || '').replace(/[^0-9]/g, '');
+  const rrn6 = rrnRaw.slice(0, 6) || 'NoRRN';
+
+  /* public_files (E2EE 분리 — 이미 평문) */
+  const publicFiles = (item.public_files || []).map(f => ({
+    docKey: f.docKey, name: f.name, mime: f.mime,
+    blob: new Blob([b64ToBytes(f.data)], { type: f.mime || 'application/octet-stream' })
+  }));
+
+  return {
+    targetName, rrn6,
+    files: [...publicFiles, ...encryptedFiles]
+  };
+}
+
+/* 여러 파일을 합쳐 단일 PDF 바이트 반환. 이미지는 페이지로 변환, PDF는 페이지 복사 */
+async function buildPdfFromFiles(files){
+  const { PDFDocument } = PDFLib;
+  const merged = await PDFDocument.create();
+  const A4_W = 595.28, A4_H = 841.89;
+
+  for(const f of files){
+    const mime = (f.mime || '').toLowerCase();
+    try {
+      if(mime.startsWith('image/')){
+        /* 이미지 → JPEG 변환 → PDF 페이지 추가 */
+        const bitmap = await createImageBitmap(f.blob, { imageOrientation: 'from-image' });
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0);
+        if(bitmap.close) bitmap.close();
+        const jpegBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+        const jpegBytes = await jpegBlob.arrayBuffer();
+        const image = await merged.embedJpg(jpegBytes);
+        const page = merged.addPage([A4_W, A4_H]);
+        const ratio = Math.min(A4_W / image.width, A4_H / image.height) * 0.95;
+        const w = image.width * ratio, h = image.height * ratio;
+        page.drawImage(image, {
+          x: (A4_W - w) / 2,
+          y: (A4_H - h) / 2,
+          width: w, height: h
+        });
+      } else if(mime === 'application/pdf'){
+        /* PDF → 모든 페이지 복사 */
+        const srcBytes = await f.blob.arrayBuffer();
+        const srcPdf = await PDFDocument.load(srcBytes, { ignoreEncryption: true });
+        const pages = await merged.copyPages(srcPdf, srcPdf.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      } else {
+        /* 기타 형식 — 안내 페이지 추가 */
+        const page = merged.addPage([A4_W, A4_H]);
+        const txt = `[지원되지 않는 형식: ${f.name || 'file'} (${mime || '?'})]`;
+        page.drawText(txt, { x: 50, y: A4_H - 100, size: 12 });
+      }
+    } catch(err){
+      console.warn('Skip file due to error:', f.name, err);
+      /* 에러 페이지 표시 */
+      try {
+        const page = merged.addPage([A4_W, A4_H]);
+        page.drawText(`[파일 처리 실패: ${(f.name || 'unknown').slice(0,80)}]`, { x: 50, y: A4_H - 100, size: 12 });
+        page.drawText(`(${err.message.slice(0, 100)})`, { x: 50, y: A4_H - 130, size: 10 });
+      } catch(_){}
+    }
+  }
+  return await merged.save();
+}
 
 /* ═════════ 홈택스 검증 — 추출 ═════════ */
 let pendingHtxExtract = false;
