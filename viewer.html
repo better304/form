@@ -94,20 +94,6 @@
  /* 첨부 개수 뱃지 */
  .col-files{text-align:center}
  .file-badge{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;background:#FFF3CC;border:1px solid #E8C76B;border-radius:999px;font-size:12px;font-weight:700;color:#7A5500;white-space:nowrap}
- /* 홈택스 검증 뱃지 */
- .col-htx{text-align:center;white-space:nowrap}
- .htx-badge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:6px;font-size:11.5px;font-weight:700;white-space:nowrap;border:1px solid transparent}
- .htx-badge.htx-pending{background:#FFF5E0;border-color:#E8A82C;color:#7A5500}
- .htx-badge.htx-ok{background:#E6F4DB;border-color:#4E8B3A;color:#2D5F3F}
- .htx-badge.htx-err{background:#FEE;border-color:#D33;color:#A11}
- .htx-badge.htx-warn{background:#FFE0CC;border-color:#E8741A;color:#A23900}
- .htx-badge.htx-captcha{background:#E5E5F5;border-color:#7B4F8C;color:#4A2563}
- /* 홈택스 검증 모달 */
- .htx-warn{background:#FFF5E0;border-left:4px solid #E89A00;border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;color:#7A4A00}
- .htx-json{width:100%;padding:10px 12px;border:1.5px solid #BFBFBF;border-radius:8px;font-family:Consolas,Menlo,monospace;font-size:11.5px;line-height:1.5;color:#1A4480;background:#F8FAFE;resize:vertical;min-height:200px;box-sizing:border-box}
- .htx-json:focus{outline:none;border-color:#7B4F8C;background:#fff}
- .htx-actions{display:flex;align-items:center;gap:8px;margin-top:10px}
- .htx-actions span{margin-right:auto}
  /* 보기 모드 (활성/휴지통) */
  .view-mode-bar{display:flex;gap:6px;margin-bottom:10px}
  .view-mode-bar .vm-btn{padding:9px 16px;background:#fff;border:1.5px solid #DDD;border-radius:8px;font-size:13px;font-weight:700;color:#666;cursor:pointer;transition:all .12s;font-family:inherit}
@@ -357,8 +343,6 @@
  <button class="btn sm" id="btnBulkExport" style="background:#0c7c4a;color:#fff">CSV</button>
  <button class="btn sm" id="btnBulkXlsx" style="background:#107C41;color:#fff">Excel 보고서</button>
  <button class="btn sm" id="btnBulkWord" style="background:#1f4e79;color:#fff">Word 보고서</button>
- <button class="btn sm" id="btnBulkHtxExtract" style="background:#7B4F8C;color:#fff" title="선택 항목 ID/PW 복호화 → 클립보드 복사">홈택스 검증 추출</button>
- <button class="btn ghost sm" id="btnBulkHtxApply" style="border-color:#7B4F8C;color:#7B4F8C" title="로컬 Node 스크립트 결과 JSON 적용">검증 결과 적용</button>
  <button class="btn sm" id="btnBulkPdfMerge" style="background:#B91C1C;color:#fff" title="첨부파일을 1개 PDF로 합쳐서 다운로드 (선택 행마다 1파일)">PDF 합쳐 다운로드</button>
  <button class="btn ghost sm" id="btnBulkClear">선택 해제</button>
  <span style="margin-left:auto;font-size:11px;color:#888">행 체크박스로 선택 후 액션 실행</span>
@@ -396,39 +380,6 @@
  </div>
 </div>
 
-<!-- 홈택스 검증 — 추출 모달 -->
-<div id="htxExtractModal" class="modal" role="dialog" aria-modal="true">
- <div class="modal-card" style="max-width:780px">
- <button type="button" class="modal-x" id="htxExtractClose" aria-label="닫기">×</button>
- <h3 style="margin:0 0 8px">홈택스 검증용 데이터</h3>
- <p style="font-size:13px;color:#666;margin:0 0 12px">아래 [클립보드 복사] 누른 후 <code>hometax-verify</code> 폴더의 <strong>run.bat</strong>을 더블클릭. 검증 끝나면 결과가 자동으로 클립보드에 들어가 있고, 다시 [검증 결과 적용]에 붙여넣으면 됩니다.</p>
- <div class="htx-warn">
- ⚠ 이 JSON은 <strong>복호화된 ID/비밀번호 + 주민번호 일부</strong>를 포함합니다. 검증 외 용도로 공유하지 마세요.
- </div>
- <textarea id="htxExtractJson" class="htx-json" rows="12" readonly></textarea>
- <div class="htx-actions">
- <span id="htxExtractCount" style="font-size:12px;color:#666"></span>
- <button class="btn ghost sm" id="htxExtractCopy">클립보드 복사</button>
- <button class="btn sm" id="htxExtractCloseBtn" style="background:#7B4F8C;color:#fff">닫기</button>
- </div>
- </div>
-</div>
-
-<!-- 홈택스 검증 — 결과 적용 모달 -->
-<div id="htxApplyModal" class="modal" role="dialog" aria-modal="true">
- <div class="modal-card" style="max-width:780px">
- <button type="button" class="modal-x" id="htxApplyClose" aria-label="닫기">×</button>
- <h3 style="margin:0 0 8px">검증 결과 적용</h3>
- <p style="font-size:13px;color:#666;margin:0 0 8px">로컬 스크립트(run.bat)가 클립보드에 넣어준 결과 JSON을 붙여넣고 [적용]을 누르면 검증 컬럼·메모가 자동 업데이트됩니다.</p>
- <p style="font-size:11.5px;color:#666;margin:0 0 8px">상태값: <strong>verified_personal</strong>(개인ID 확인) · <strong>error_credentials</strong>(ID/PW 오류) · <strong>error_corporate</strong>(개인ID 아님) · <strong>pending_captcha</strong>(CAPTCHA로 미검증)</p>
- <textarea id="htxApplyJson" class="htx-json" rows="12" placeholder='[{"id":"...","htx_status":"verified_personal"}, ...]'></textarea>
- <div class="htx-actions">
- <span id="htxApplyMsg" style="font-size:12px;color:#666"></span>
- <button class="btn ghost sm" id="htxApplyCancel">취소</button>
- <button class="btn sm" id="htxApplyOk" style="background:#7B4F8C;color:#fff">적용</button>
- </div>
- </div>
-</div>
 
 <!-- 호환성 위해 숨김 플레이스홀더 (기존 코드 참조 보존) -->
 <div class="details-toolbar" id="detailsToolbar" style="display:none">
@@ -901,7 +852,7 @@ function updateBulkBar(){
  $('#bulkCount').textContent = `${n}건 선택`;
  $('#bulkBar').classList.toggle('has-selection', n > 0);
  /* 선택 0건일 때 액션 버튼 비활성화 */
- ['#btnBulkOpen','#btnBulkExport','#btnBulkXlsx','#btnBulkWord','#btnBulkHtxExtract','#btnBulkPdfMerge','#btnBulkClear'].forEach(s => {
+ ['#btnBulkOpen','#btnBulkExport','#btnBulkXlsx','#btnBulkWord','#btnBulkPdfMerge','#btnBulkClear'].forEach(s => {
  const b = $(s); if(b) b.disabled = n === 0;
  });
 }
@@ -2519,19 +2470,6 @@ function moneyDigits(v){
  return String(v || '').replace(/[^\d]/g, '');
 }
 
-/* 홈택스 검증 상태 → 텍스트 뱃지 (신규/기존 동일 처리) */
-function htxStatusBadge(status, userType){
-  const map = {
-    unverified:        { label:'검증 대기',    cls:'htx-pending' },
-    verified_personal: { label:'개인ID 확인',  cls:'htx-ok' },
-    error_credentials: { label:'ID/PW 오류',   cls:'htx-err' },
-    error_corporate:   { label:'개인ID 아님',  cls:'htx-warn' },
-    pending_captcha:   { label:'CAPTCHA',      cls:'htx-captcha' }
-  };
-  const v = map[status || 'unverified'] || map.unverified;
-  return `<span class="htx-badge ${v.cls}">${v.label}</span>`;
-}
-
 function statusLabel(s){
   return ({
     pending:   '대기',
@@ -2703,10 +2641,6 @@ $('#btnUnlock').addEventListener('click', async () => {
  pendingXlsxExport = false;
  await runXlsxExport();
  }
- if(pendingHtxExtract){
- pendingHtxExtract = false;
- await runHtxExtract();
- }
  if(pendingPdfMerge){
  pendingPdfMerge = false;
  await runPdfMerge();
@@ -2805,7 +2739,7 @@ $('#btnBulkPdfMerge').addEventListener('click', async () => {
   }
   if(!state.privKey){
     pendingPdfMerge = true;
-    pendingExport = false; pendingWordExport = false; pendingXlsxExport = false; pendingHtxExtract = false;
+    pendingExport = false; pendingWordExport = false; pendingXlsxExport = false;
     pendingDecryptCardId = null;
     $('#decryptErr').textContent = '';
     $('#privFile').value = ''; $('#privPwd').value = '';
@@ -2964,126 +2898,6 @@ async function buildPdfFromFiles(files){
   }
   return await merged.save();
 }
-
-/* ═════════ 홈택스 검증 — 추출 ═════════ */
-let pendingHtxExtract = false;
-$('#btnBulkHtxExtract').addEventListener('click', async () => {
-  if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
-  if(!state.privKey){
-    pendingHtxExtract = true;
-    pendingExport = false; pendingWordExport = false; pendingXlsxExport = false;
-    pendingDecryptCardId = null;
-    $('#decryptErr').textContent = '';
-    $('#privFile').value = ''; $('#privPwd').value = '';
-    $('#decryptModal').classList.add('active');
-    setTimeout(()=>$('#privFile').focus(), 100);
-    return;
-  }
-  await runHtxExtract();
-});
-
-async function runHtxExtract(){
-  const ids = state.items.filter(it => state.selected.has(it.id)).map(it => it.id);
-  if(ids.length === 0) return;
-  toast(`복호화 중… (0/${ids.length})`, 60000);
-  const out = [];
-  let done = 0;
-  for(const id of ids){
-    try{
-      const data = await getSubmissionTextOnly(id);
-      const pd = (data.item.public_data) || {};
-      const s  = data.sensitive || {};
-      const rrnRaw = (s.rrn || '').replace(/[^0-9]/g, '');
-      out.push({
-        id: id,
-        target: pd.targetName || '',
-        hometax_id: s.hometax_id || '',
-        hometax_pw: s.hometax_pw || '',
-        rrn_front: rrnRaw.slice(0, 6),
-        rrn_first: rrnRaw.slice(6, 7)
-      });
-    }catch(err){
-      console.warn('htx extract fail', id, err);
-    }
-    done++;
-    if(done % 3 === 0) toast(`복호화 중… (${done}/${ids.length})`, 60000);
-  }
-  if(out.length === 0){
-    toast('검증 대상이 없습니다', 3000);
-    return;
-  }
-  $('#htxExtractJson').value = JSON.stringify(out, null, 2);
-  $('#htxExtractCount').textContent = `${out.length}건 추출됨`;
-  $('#htxExtractModal').classList.add('active');
-  /* 자동으로 클립보드에 복사 시도 */
-  try { await navigator.clipboard.writeText($('#htxExtractJson').value); toast(`${out.length}건 추출 + 클립보드 복사`, 2500); }
-  catch(_) { toast(`${out.length}건 추출 완료 (수동 복사 필요)`, 2500); }
-}
-
-$('#htxExtractCopy').addEventListener('click', async () => {
-  const ta = $('#htxExtractJson');
-  ta.select();
-  try { await navigator.clipboard.writeText(ta.value); toast('클립보드 복사 완료', 2000); }
-  catch(_){ document.execCommand('copy'); toast('복사됨', 2000); }
-});
-$('#htxExtractClose').addEventListener('click', () => $('#htxExtractModal').classList.remove('active'));
-$('#htxExtractCloseBtn').addEventListener('click', () => $('#htxExtractModal').classList.remove('active'));
-
-/* ═════════ 홈택스 검증 — 결과 적용 ═════════ */
-$('#btnBulkHtxApply').addEventListener('click', async () => {
-  /* 클립보드 자동 붙여넣기 시도 */
-  let prefill = '';
-  try { prefill = await navigator.clipboard.readText(); }catch(_){}
-  $('#htxApplyJson').value = (prefill && prefill.trim().startsWith('[')) ? prefill : '';
-  $('#htxApplyMsg').textContent = '';
-  $('#htxApplyModal').classList.add('active');
-  setTimeout(() => $('#htxApplyJson').focus(), 100);
-});
-$('#htxApplyClose').addEventListener('click', () => $('#htxApplyModal').classList.remove('active'));
-$('#htxApplyCancel').addEventListener('click', () => $('#htxApplyModal').classList.remove('active'));
-
-$('#htxApplyOk').addEventListener('click', async () => {
-  const text = $('#htxApplyJson').value.trim();
-  if(!text){ $('#htxApplyMsg').textContent = 'JSON을 붙여넣으세요'; return; }
-  let arr;
-  try { arr = JSON.parse(text); }
-  catch(e){ $('#htxApplyMsg').textContent = 'JSON 형식 오류: ' + e.message; return; }
-  if(!Array.isArray(arr) || arr.length === 0){ $('#htxApplyMsg').textContent = '배열 형식이어야 합니다'; return; }
-
-  const STATUS_LABEL = {
-    verified_personal: '개인ID 확인',
-    error_credentials: 'ID or PW 오류',
-    error_corporate:   '개인 ID 아님',
-    pending_captcha:   'CAPTCHA로 미검증'
-  };
-  let success = 0, fail = 0, skip = 0;
-  $('#htxApplyMsg').textContent = `처리 중… 0/${arr.length}`;
-  for(let i = 0; i < arr.length; i++){
-    const r = arr[i];
-    if(!r.id || !r.htx_status){ skip++; continue; }
-    const li = state.items.find(x => x.id === r.id);
-    if(!li){ fail++; continue; }
-    const patch = { htx_status: r.htx_status };
-    /* 실패 케이스는 고객 안내 메시지 자동 작성 */
-    if(r.htx_status === 'error_credentials' || r.htx_status === 'error_corporate'){
-      const target = li.target_name || '고객';
-      const errMsg = STATUS_LABEL[r.htx_status] || '오류';
-      const customerMsg = `${target}님 홈택스 ${errMsg} - 다시 확인 부탁드립니다`;
-      patch.admin_memo = li.admin_memo ? `${customerMsg}\n${li.admin_memo}` : customerMsg;
-    }
-    try {
-      await api(`/api/item/${r.id}`, { method: 'PATCH', body: JSON.stringify(patch) });
-      li.htx_status = r.htx_status;
-      if(patch.admin_memo) li.admin_memo = patch.admin_memo;
-      success++;
-    } catch(err){ console.warn('htx apply fail', r.id, err); fail++; }
-    $('#htxApplyMsg').textContent = `처리 중… ${i+1}/${arr.length}`;
-  }
-  renderList();
-  $('#htxApplyMsg').textContent = `적용 ${success}건 / 실패 ${fail}건 / 스킵 ${skip}건`;
-  toast(`검증결과 ${success}건 적용`, 3000);
-  setTimeout(() => $('#htxApplyModal').classList.remove('active'), 1500);
-});
 
 /* 페이지네이션 컨트롤 */
 $('#pageSizeSelect').addEventListener('change', e => {
