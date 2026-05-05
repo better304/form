@@ -7,12 +7,36 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
 <title>접수 관리 · 더나은세무회계</title>
-<!-- ExcelJS — 양식 .xlsx 보존 + 셀 값만 채워서 다운로드 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<!-- JSZip — Excel 출력 버퍼의 잘못된 XML 속성 후처리용 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<!-- pdf-lib — 첨부파일 PDF 합치기용 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<!-- 외부 라이브러리는 지연 로딩 (버튼 클릭 시점에만 로드)
+     ExcelJS (~950KB), JSZip (~95KB), pdf-lib (~1.4MB) — 합 약 2.4MB
+     초기 페이지 로드 차단을 막기 위해 head에서 제외 -->
+<script>
+  /* 라이브러리 지연 로더 — 한 번 로드한 후 캐시 */
+  window.__libCache = {};
+  window.loadLib = function(name){
+    if(window.__libCache[name]) return window.__libCache[name];
+    const urls = {
+      exceljs: 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+      jszip:   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+      pdflib:  'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'
+    };
+    const url = urls[name];
+    if(!url) return Promise.reject(new Error('Unknown library: ' + name));
+    window.__libCache[name] = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = url;
+      s.crossOrigin = 'anonymous';
+      s.referrerPolicy = 'no-referrer';
+      s.onload = () => resolve();
+      s.onerror = () => {
+        delete window.__libCache[name];
+        reject(new Error(name + ' 로드 실패'));
+      };
+      document.head.appendChild(s);
+    });
+    return window.__libCache[name];
+  };
+</script>
 <style>
  *{box-sizing:border-box}
  html,body{margin:0;padding:0;font-family:-apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;color:#1A1A1A;background:#F5F7F2;line-height:1.55;font-size:14px}
@@ -1552,8 +1576,10 @@ $('#btnBulkWord').addEventListener('click', async () => {
 let pendingXlsxExport = false;
 $('#btnBulkXlsx').addEventListener('click', async () => {
  if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
+ try { toast('Excel 라이브러리 로드 중…', 1500); await loadLib('exceljs'); await loadLib('jszip'); }
+ catch(e){ toast('Excel 라이브러리 로드 실패: ' + e.message, 5000); return; }
  if(typeof ExcelJS === 'undefined'){
- toast('ExcelJS 라이브러리 로드 실패. 인터넷 연결 확인 후 페이지 새로고침', 5000);
+ toast('ExcelJS 로드 실패. 인터넷 연결 확인', 5000);
  return;
  }
  if(!state.privKey){
@@ -1828,6 +1854,7 @@ async function buildXlsxWorkbookMulti(submissions){
 
 /* xlsx 버퍼 후처리 — Excel이 거부하는 XML 속성 제거 */
 async function sanitizeXlsxBuffer(buf){
+ try { await loadLib('jszip'); } catch(_){}
  if(typeof JSZip === 'undefined'){
  console.warn('[xlsx 후처리 건너뜀] JSZip 미로드');
  return buf;
@@ -2734,6 +2761,8 @@ $('#btnClearFilter').addEventListener('click', () => {
 let pendingPdfMerge = false;
 $('#btnBulkPdfMerge').addEventListener('click', async () => {
   if(state.selected.size === 0){ toast('선택된 항목이 없습니다', 3000); return; }
+  try { toast('PDF 라이브러리 로드 중…', 1500); await loadLib('pdflib'); }
+  catch(e){ toast('pdf-lib 로드 실패: ' + e.message, 5000); return; }
   if(typeof PDFLib === 'undefined'){
     toast('pdf-lib 로드 실패. 새로고침 후 재시도', 5000); return;
   }
@@ -2915,6 +2944,8 @@ $('#btnDashXlsx').addEventListener('click', async () => {
  if(!state.items || state.items.length === 0){
  toast('표시할 항목이 없습니다', 3000); return;
  }
+ try { toast('Excel 라이브러리 로드 중…', 1500); await loadLib('exceljs'); }
+ catch(e){ toast('Excel 라이브러리 로드 실패: ' + e.message, 4000); return; }
  if(typeof ExcelJS === 'undefined'){
  toast('ExcelJS 로드 실패. 새로고침 후 재시도', 4000); return;
  }
