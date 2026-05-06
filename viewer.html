@@ -2239,6 +2239,10 @@ function buildExportRow(item, dec){
  const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
  const depCombined = depPub.map((p, i) => `${p.rel||''}_${p.name||''}_${depRrn[i]||''}_장애${p.disability||'x'}`).join(' | ');
 
+ /* 관리자 메모 — 대시보드에서 방금 입력한 값(state.items) 우선, 없으면 item 자체값 */
+ const liForMemo = state.items.find(x => x.id === item.id);
+ const adminMemo = ((liForMemo && liForMemo.admin_memo) || item.admin_memo || '').trim();
+
  return {
  '접수번호': item.id,
  '접수일시': fmtDate(item.submitted_at),
@@ -2272,7 +2276,8 @@ function buildExportRow(item, dec){
  '동의_필수1': pd.agree1 ? 'Y' : 'N',
  '동의_필수2': pd.agree2 ? 'Y' : 'N',
  '동의_마케팅': pd.agree3 ? 'Y' : 'N',
- '첨부파일수': (dec.fileCount != null ? dec.fileCount : (dec.files||[]).length) || 0
+ '첨부파일수': (dec.fileCount != null ? dec.fileCount : (dec.files||[]).length) || 0,
+ '관리자메모': adminMemo
  };
 }
 
