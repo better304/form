@@ -287,9 +287,7 @@
 <section id="main">
  <div class="wrap">
  <div class="toolbar">
- <input type="search" id="search" placeholder="이름·연락처·업종 검색…" autocomplete="off" />
  <span class="stat" id="stat"></span>
- <button class="btn sm" id="btnDashXlsx" style="background:#5B2C7E;color:#fff" title="대시보드(상태·수수료·부가세·메모) 엑셀 다운로드"> 대시보드 엑셀</button>
  <button class="btn ghost sm" id="btnRefresh"> 새로고침</button>
  </div>
  <!-- 상태 집계 -->
@@ -297,6 +295,8 @@
  <span class="ss-item ss-pending"><span class="ss-dot"></span>대기 <strong id="ssPending">0</strong>명</span>
  <span class="ss-item ss-revising"><span class="ss-dot"></span>수정중 <strong id="ssRevising">0</strong>명</span>
  <span class="ss-item ss-completed"><span class="ss-dot"></span>출력완료 <strong id="ssCompleted">0</strong>명</span>
+ <span class="ss-item ss-invoiced"><span class="ss-dot"></span>입금요청 <strong id="ssInvoiced">0</strong>명</span>
+ <span class="ss-item ss-paid"><span class="ss-dot"></span>입금완료 <strong id="ssPaid">0</strong>명</span>
  <span class="ss-item ss-filed"><span class="ss-dot"></span>신고완료 <strong id="ssFiled">0</strong>명</span>
  <span class="ss-item ss-canceled"><span class="ss-dot"></span>접수취소 <strong id="ssCanceled">0</strong>명</span>
  <span class="ss-divider"></span>
@@ -328,6 +328,8 @@
  <option value="pending">대기</option>
  <option value="revising">수정중</option>
  <option value="completed">출력완료</option>
+ <option value="invoiced">입금요청</option>
+ <option value="paid">입금완료</option>
  <option value="filed">신고완료</option>
  <option value="canceled">접수취소</option>
  </select>
@@ -344,22 +346,14 @@
  <option value="status_desc">상태 진행역순 (취소→대기)</option>
  </select>
  <button class="btn ghost sm" id="btnClearFilter" title="모든 필터/정렬 초기화">초기화</button>
- </div>
- <!-- 페이지네이션 컨트롤 -->
- <div class="pagination-bar" id="paginationBar">
- <span style="font-size:12px;color:#666">한 페이지 표시:</span>
- <select id="pageSizeSelect" class="pg-select">
- <option value="10">10건</option>
- <option value="20" selected>20건</option>
- <option value="50">50건</option>
+ <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+ <input type="search" id="search" placeholder="이름·연락처·업종 검색…" autocomplete="off" style="padding:6px 10px;border:1.5px solid #BFBFBF;border-radius:6px;font-size:12.5px;min-width:180px;font-family:inherit" />
+ <select id="pageSizeSelect" class="fb-select" title="한 페이지 표시 건수" style="min-width:auto">
+ <option value="10">10건씩</option>
+ <option value="20" selected>20건씩</option>
+ <option value="50">50건씩</option>
  </select>
- <span class="pg-spacer"></span>
- <button class="btn ghost sm" id="pgFirst" title="처음">«</button>
- <button class="btn ghost sm" id="pgPrev" title="이전">‹</button>
- <span class="pg-info" id="pgInfo">1 / 1</span>
- <button class="btn ghost sm" id="pgNext" title="다음">›</button>
- <button class="btn ghost sm" id="pgLast" title="끝">»</button>
- <span class="pg-total" id="pgTotal" style="margin-left:auto;font-size:12px;color:#666">총 0건</span>
+ </span>
  </div>
  <div class="bulk-bar" id="bulkBar">
  <span class="count" id="bulkCount">0건 선택</span>
@@ -383,13 +377,23 @@
  <th>유형</th>
  <th>상태</th>
  <th>첨부</th>
+ <th style="min-width:108px">수수료</th>
  <th style="min-width:280px">메모</th>
  </tr>
  </thead>
  <tbody id="rows">
- <tr><td colspan="7" class="empty">로딩 중…</td></tr>
+ <tr><td colspan="10" class="empty">로딩 중…</td></tr>
  </tbody>
  </table>
+ </div>
+ <!-- 페이지 이동 (표 하단) -->
+ <div class="pagination-bar" id="paginationBar" style="margin-top:12px;margin-bottom:0">
+ <button class="btn ghost sm" id="pgFirst" title="처음">«</button>
+ <button class="btn ghost sm" id="pgPrev" title="이전">‹</button>
+ <span class="pg-info" id="pgInfo">1 / 1</span>
+ <button class="btn ghost sm" id="pgNext" title="다음">›</button>
+ <button class="btn ghost sm" id="pgLast" title="끝">»</button>
+ <span class="pg-total" id="pgTotal" style="margin-left:auto;font-size:12px;color:#666">총 0건</span>
  </div>
  <p style="font-size:11px;color:#888;margin-top:14px">데이터는 신고기한 종료(매년 6/1) 후 자동 삭제됩니다. 즉시 삭제는 카드의 [ 삭제] 버튼 휴지통 30일 보관 자동 영구 삭제.</p>
 
@@ -549,7 +553,7 @@ const state = {
 };
 
 /* 정렬 인덱스 (진행순 정의) */
-const STATUS_ORDER = { pending:0, revising:1, completed:2, filed:3, canceled:4 };
+const STATUS_ORDER = { pending:0, revising:1, completed:2, invoiced:3, paid:4, filed:5, canceled:6 };
 const BIZ_ORDER = { self:0, free:1, rent:2, etc:3 };
 const USERTYPE_ORDER = { new:0, existing:1 };
 function getCmpFn(sortKey){
@@ -793,6 +797,7 @@ function renderList(){
  <td style="font-size:12px">${escapeHtml(userTypeLabel(it.userType))}</td>
 <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
  <td class="col-files">${it.file_count != null && it.file_count > 0 ? '<span class="file-badge">' + it.file_count + '</span>' : '<span style="color:#CCC">-</span>'}</td>
+ <td><input type="text" class="admin-input admin-money" data-id="${escapeHtml(it.id)}" data-field="admin_fee" value="${escapeHtml(formatMoney(adminFee))}" placeholder="" /></td>
  <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
  </tr>`;
  }).join('');
@@ -891,7 +896,7 @@ function syncCheckAll(){
 
 /* 상태 집계 카운터 — items 배열 기준 */
 function refreshStatusSummary(){
- const counts = { pending:0, revising:0, completed:0, filed:0, canceled:0 };
+ const counts = { pending:0, revising:0, completed:0, invoiced:0, paid:0, filed:0, canceled:0 };
  /* 활성 항목만 집계 (휴지통 제외) */
  for(const it of state.items){
  if(it.deleted_at) continue;
@@ -903,6 +908,8 @@ function refreshStatusSummary(){
  set('#ssPending', counts.pending);
  set('#ssRevising', counts.revising);
  set('#ssCompleted', counts.completed);
+ set('#ssInvoiced', counts.invoiced);
+ set('#ssPaid', counts.paid);
  set('#ssFiled', counts.filed);
  set('#ssCanceled', counts.canceled);
  set('#ssTotal', total);
@@ -2239,8 +2246,9 @@ function buildExportRow(item, dec){
  const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
  const depCombined = depPub.map((p, i) => `${p.rel||''}_${p.name||''}_${depRrn[i]||''}_장애${p.disability||'x'}`).join(' | ');
 
- /* 관리자 메모 — 대시보드에서 방금 입력한 값(state.items) 우선, 없으면 item 자체값 */
+ /* 관리자 수수료/메모 — 대시보드에서 방금 입력한 값(state.items) 우선, 없으면 item 자체값 */
  const liForMemo = state.items.find(x => x.id === item.id);
+ const adminFee  = ((liForMemo && liForMemo.admin_fee)  || item.admin_fee  || '').toString().trim();
  const adminMemo = ((liForMemo && liForMemo.admin_memo) || item.admin_memo || '').trim();
 
  return {
@@ -2277,6 +2285,7 @@ function buildExportRow(item, dec){
  '동의_필수2': pd.agree2 ? 'Y' : 'N',
  '동의_마케팅': pd.agree3 ? 'Y' : 'N',
  '첨부파일수': (dec.fileCount != null ? dec.fileCount : (dec.files||[]).length) || 0,
+ '수수료': adminFee,
  '관리자메모': adminMemo
  };
 }
@@ -2508,9 +2517,9 @@ function statusLabel(s){
     revising:  '수정중',
     revised:   '수정완료',
     completed: '출력완료',
-    filed:     '신고완료',
-    invoiced:  '세금계산서 발급',
+    invoiced:  '입금요청',
     paid:      '입금완료',
+    filed:     '신고완료',
     finalized: '납부서 전달 및 후기요청',
     canceled:  '접수취소'
   })[s] || s || '-';
@@ -2520,6 +2529,8 @@ function statusOptions(){
     { v:'pending',   label:'대기' },
     { v:'revising',  label:'수정중' },
     { v:'completed', label:'출력완료' },
+    { v:'invoiced',  label:'입금요청' },
+    { v:'paid',      label:'입금완료' },
     { v:'filed',     label:'신고완료' },
     { v:'canceled',  label:'접수취소' }
   ];
@@ -2944,66 +2955,6 @@ $('#pgPrev').addEventListener('click', () => { state.currentPage = Math.max(1, s
 $('#pgNext').addEventListener('click', () => { state.currentPage = state.currentPage + 1; renderList(); });
 $('#pgLast').addEventListener('click', () => { state.currentPage = 99999; renderList(); /* renderList가 클램핑 */ });
 
-/* 대시보드 엑셀 — 관리자용 (상태·수수료·부가세·메모 포함, 민감정보 없음) */
-$('#btnDashXlsx').addEventListener('click', async () => {
- if(!state.items || state.items.length === 0){
- toast('표시할 항목이 없습니다', 3000); return;
- }
- try { toast('Excel 라이브러리 로드 중…', 1500); await loadLib('exceljs'); }
- catch(e){ toast('Excel 라이브러리 로드 실패: ' + e.message, 4000); return; }
- if(typeof ExcelJS === 'undefined'){
- toast('ExcelJS 로드 실패. 새로고침 후 재시도', 4000); return;
- }
- try{
- const wb = new ExcelJS.Workbook();
- const ws = wb.addWorksheet('대시보드');
- /* 헤더 */
- const headers = ['접수일','신고대상자','연락처','업종','유형','상태','메모'];
- ws.addRow(headers);
- const headerRow = ws.getRow(1);
- headerRow.font = { bold:true, color:{argb:'FFFFFFFF'} };
- headerRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF2D5F3F'} };
- headerRow.alignment = { vertical:'middle', horizontal:'center' };
- headerRow.height = 24;
- /* 데이터 */
- for(const it of state.items){
- const userTxt = it.userType === 'new' ? '신규' : (it.userType === 'existing' ? '기존' : '');
- const statusTxt = ({pending:'대기',revising:'수정중',revised:'수정완료',completed:'출력완료',filed:'신고완료',invoiced:'세금계산서 발급',paid:'입금완료',finalized:'납부서 전달 및 후기요청',canceled:'접수취소'})[it.status||'pending'] || it.status || '';
- const row = ws.addRow([
- fmtDate(it.submitted_at),
- it.target_name || '',
- it.phone || '',
- bizTypeLabel(it.bizType),
- userTxt,
- statusTxt,
- it.admin_memo || ''
- ]);
- row.alignment = { vertical:'middle', wrapText:true };
- }
- /* 컬럼 너비 */
- const widths = [18, 14, 14, 12, 8, 12, 50];
- widths.forEach((w, i) => { ws.getColumn(i+1).width = w; });
- /* 집계 (하단) */
- const counts = { pending:0, revising:0, completed:0, filed:0, canceled:0 };
- for(const it of state.items){ const s = it.status || 'pending'; if(counts[s] !== undefined) counts[s]++; }
- ws.addRow([]);
- const summaryRow = ws.addRow([
- `대기 ${counts.pending} · 수정중 ${counts.revising} · 출력완료 ${counts.completed} · 신고완료 ${counts.filed} · 접수취소 ${counts.canceled}`,
- '', '', '', '', `총 ${state.items.length}명`,
- ''
- ]);
- summaryRow.font = { bold:true };
- summaryRow.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF4F8EC'} };
- /* 출력 */
- const buf = await wb.xlsx.writeBuffer();
- const ymd = new Date().toISOString().slice(0,10).replace(/-/g,'');
- downloadXlsx(buf, `대시보드_${ymd}.xlsx`);
- toast(`대시보드 ${state.items.length}건 다운로드 완료`, 3000);
- }catch(err){
- console.error('Dashboard export failed:', err);
- toast(`다운로드 실패: ${err.message}`, 5000);
- }
-});
 $('#btnLogout').addEventListener('click', () => forceLogout());
 $('#btnLogin').addEventListener('click', doLogin);
 $('#pwd').addEventListener('keypress', e => { if(e.key === 'Enter') doLogin(); });
