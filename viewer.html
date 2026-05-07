@@ -286,10 +286,6 @@
 <!-- ── 메인(목록) ── -->
 <section id="main">
  <div class="wrap">
- <div class="toolbar">
- <span class="stat" id="stat"></span>
- <button class="btn ghost sm" id="btnRefresh"> 새로고침</button>
- </div>
  <!-- 상태 집계 -->
  <div class="status-summary" id="statusSummary">
  <span class="ss-item ss-pending"><span class="ss-dot"></span>대기 <strong id="ssPending">0</strong>명</span>
@@ -301,6 +297,8 @@
  <span class="ss-item ss-canceled"><span class="ss-dot"></span>접수취소 <strong id="ssCanceled">0</strong>명</span>
  <span class="ss-divider"></span>
  <span class="ss-item ss-total">총 <strong id="ssTotal">0</strong>명</span>
+ <span id="stat" style="font-size:12px;color:#666"></span>
+ <button class="btn ghost sm" id="btnRefresh"> 새로고침</button>
  </div>
  <!-- 보기 모드 (활성/휴지통) -->
  <div class="view-mode-bar" id="viewModeBar">
@@ -346,14 +344,12 @@
  <option value="status_desc">상태 진행역순 (취소→대기)</option>
  </select>
  <button class="btn ghost sm" id="btnClearFilter" title="모든 필터/정렬 초기화">초기화</button>
- <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
- <input type="search" id="search" placeholder="이름·연락처·업종 검색…" autocomplete="off" style="padding:6px 10px;border:1.5px solid #BFBFBF;border-radius:6px;font-size:12.5px;min-width:180px;font-family:inherit" />
  <select id="pageSizeSelect" class="fb-select" title="한 페이지 표시 건수" style="min-width:auto">
  <option value="10">10건씩</option>
  <option value="20" selected>20건씩</option>
  <option value="50">50건씩</option>
  </select>
- </span>
+ <input type="search" id="search" placeholder="이름·연락처·업종 검색…" autocomplete="off" style="flex:1;min-width:180px;padding:6px 10px;border:1.5px solid #BFBFBF;border-radius:6px;font-size:12.5px;font-family:inherit" />
  </div>
  <div class="bulk-bar" id="bulkBar">
  <span class="count" id="bulkCount">0건 선택</span>
@@ -377,12 +373,13 @@
  <th>유형</th>
  <th>상태</th>
  <th>첨부</th>
- <th style="min-width:108px">수수료</th>
+ <th style="min-width:108px">수수료(원)</th>
+ <th style="min-width:108px">부가세(원)</th>
  <th style="min-width:280px">메모</th>
  </tr>
  </thead>
  <tbody id="rows">
- <tr><td colspan="10" class="empty">로딩 중…</td></tr>
+ <tr><td colspan="11" class="empty">로딩 중…</td></tr>
  </tbody>
  </table>
  </div>
@@ -798,6 +795,7 @@ function renderList(){
 <td><select class="status-select" data-id="${escapeHtml(it.id)}" data-old="${status}">${opts}</select></td>
  <td class="col-files">${it.file_count != null && it.file_count > 0 ? '<span class="file-badge">' + it.file_count + '</span>' : '<span style="color:#CCC">-</span>'}</td>
  <td><input type="text" class="admin-input admin-money" data-id="${escapeHtml(it.id)}" data-field="admin_fee" value="${escapeHtml(formatMoney(adminFee))}" placeholder="" /></td>
+ <td><input type="text" class="admin-input admin-money" data-id="${escapeHtml(it.id)}" data-field="admin_vat" value="${escapeHtml(formatMoney(adminVat))}" placeholder="" /></td>
  <td><input type="text" class="admin-input admin-memo" data-id="${escapeHtml(it.id)}" data-field="admin_memo" value="${escapeHtml(adminMemo)}" placeholder="메모" /></td>
  </tr>`;
  }).join('');
@@ -2246,9 +2244,10 @@ function buildExportRow(item, dec){
  const depRrn = Array.isArray(s.dependents_rrn) ? s.dependents_rrn : [];
  const depCombined = depPub.map((p, i) => `${p.rel||''}_${p.name||''}_${depRrn[i]||''}_장애${p.disability||'x'}`).join(' | ');
 
- /* 관리자 수수료/메모 — 대시보드에서 방금 입력한 값(state.items) 우선, 없으면 item 자체값 */
+ /* 관리자 수수료/부가세/메모 — 대시보드에서 방금 입력한 값(state.items) 우선, 없으면 item 자체값 */
  const liForMemo = state.items.find(x => x.id === item.id);
  const adminFee  = ((liForMemo && liForMemo.admin_fee)  || item.admin_fee  || '').toString().trim();
+ const adminVat  = ((liForMemo && liForMemo.admin_vat)  || item.admin_vat  || '').toString().trim();
  const adminMemo = ((liForMemo && liForMemo.admin_memo) || item.admin_memo || '').trim();
 
  return {
@@ -2286,6 +2285,7 @@ function buildExportRow(item, dec){
  '동의_마케팅': pd.agree3 ? 'Y' : 'N',
  '첨부파일수': (dec.fileCount != null ? dec.fileCount : (dec.files||[]).length) || 0,
  '수수료': adminFee,
+ '부가세': adminVat,
  '관리자메모': adminMemo
  };
 }
