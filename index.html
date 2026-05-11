@@ -241,6 +241,17 @@
   .tally-row .tally-won{font-size:12px;color:#666;font-weight:600}
   .tally-row .tally-del{padding:4px 8px;border:none;background:transparent;color:#999;font-size:14px;cursor:pointer;border-radius:4px}
   .tally-row .tally-del:hover{background:#FEE;color:#D33}
+  /* 모바일 — tally 카드 헤더가 줄바꿈되고 row가 2행으로 스택 */
+  @media (max-width:480px){
+    .doc-item.doc-tally .dhead{flex-wrap:wrap;row-gap:6px}
+    .doc-item.doc-tally .dname{flex:1 1 100%;min-width:0;line-height:1.35}
+    .doc-item.doc-tally .btn-add-tally{flex:0 0 auto;margin-left:auto}
+    .tally-row{grid-template-columns:1fr auto auto;grid-template-areas:"label label label" "amount won del";row-gap:6px}
+    .tally-row .tally-label-wrap{grid-area:label}
+    .tally-row input.tally-amount{grid-area:amount}
+    .tally-row .tally-won{grid-area:won;text-align:center}
+    .tally-row .tally-del{grid-area:del}
+  }
   /* 선택 자료 점진적 추가 UI */
   .opt-progressive{margin-top:18px;padding:14px;background:#F4F8EC;border:1px solid #D5DFC4;border-radius:12px}
   .opt-progressive-head{margin-bottom:12px}
@@ -1574,6 +1585,41 @@ $('#appForm').addEventListener('submit', async e=>{
   }
   if(!$('[name="agree1"]').checked || !$('[name="agree2"]').checked){
     alert('필수 동의 항목을 확인해 주세요'); return;
+  }
+  /* ── tally(합계 다중 행) 검증 — 금액만 있고 항목명이 비어있으면 제출 차단 ── */
+  {
+    let badRow = null;
+    let badDocName = '';
+    const boxes = $$('#docList [data-tally-rows]');
+    for(const box of boxes){
+      const rows = $$('.tally-row', box);
+      for(const r of rows){
+        const sel    = r.querySelector('select.tally-label');
+        const custom = r.querySelector('input.tally-custom');
+        const only   = r.querySelector('input.tally-custom-only');
+        const amtInp = r.querySelector('input.tally-amount');
+        let label = '';
+        if(sel && sel.value && sel.value !== '__custom__') label = sel.value;
+        else if(custom && custom.style.display !== 'none') label = (custom.value || '').trim();
+        else if(only) label = (only.value || '').trim();
+        const amtNum = ((amtInp && amtInp.value) || '').replace(/[^\d]/g, '');
+        if(amtNum && !label){
+          badRow = r;
+          const docItem = box.closest('.doc-item');
+          const dn = docItem && docItem.querySelector('.dname');
+          badDocName = dn ? (dn.textContent || '').replace(/\(원\)/g,'').trim() : '합계 항목';
+          break;
+        }
+      }
+      if(badRow) break;
+    }
+    if(badRow){
+      alert(`[${badDocName}]\n금액만 입력되어 있고 항목명이 비어 있습니다.\n드롭다운에서 선택하거나 직접 입력해 주세요.`);
+      badRow.scrollIntoView({ behavior:'smooth', block:'center' });
+      const focusEl = badRow.querySelector('select.tally-label:not([style*="display:none"]), input.tally-custom:not([style*="display:none"]), input.tally-custom-only');
+      if(focusEl) { try { focusEl.focus(); } catch(_){} }
+      return;
+    }
   }
   $('#submitBtn').disabled = true;
   $('#submitBtn').textContent = '전송 중…';
