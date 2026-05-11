@@ -75,16 +75,17 @@
   .blog-cta .bc-text span{font-size:12.5px;color:#555}
   .blog-cta .btn{flex-shrink:0}
 
-  /* Floating 네이버 톡톡 (모든 페이지 우하단 고정) */
-  .float-talk{position:fixed;right:14px;bottom:14px;z-index:80;display:flex;align-items:center;gap:8px;padding:13px 18px;background:#03C75A;color:#fff;border-radius:50px;text-decoration:none;font-weight:700;font-size:14px;box-shadow:0 6px 18px rgba(3,199,90,.4);transition:all .15s}
-  .float-talk:hover{background:#02A549;transform:translateY(-2px);box-shadow:0 10px 24px rgba(3,199,90,.5);color:#fff}
-  .float-talk .ft-icon{font-size:18px}
-  .float-tip{position:fixed;right:14px;bottom:74px;z-index:79;background:#1A1A1A;color:#fff;padding:9px 14px;border-radius:10px;font-size:12.5px;max-width:240px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
-  .float-tip::after{content:"";position:absolute;right:24px;bottom:-7px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #1A1A1A}
+  /* Floating 네이버 톡톡 (우하단 고정, 작은 원형 아이콘) */
+  .float-talk{position:fixed;right:12px;bottom:8px;z-index:80;display:flex;align-items:center;justify-content:center;width:52px;height:52px;background:#03C75A;color:#fff;border-radius:50%;text-decoration:none;box-shadow:0 4px 14px rgba(3,199,90,.4);transition:all .15s}
+  .float-talk:hover{background:#02A549;transform:translateY(-2px);box-shadow:0 8px 20px rgba(3,199,90,.5);color:#fff}
+  .float-talk svg{width:28px;height:28px;display:block}
+  .float-tip{position:fixed;right:12px;bottom:68px;z-index:79;background:#1A1A1A;color:#fff;padding:8px 12px;border-radius:10px;font-size:12px;max-width:220px;line-height:1.4;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+  .float-tip::after{content:"";position:absolute;right:18px;bottom:-7px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid #1A1A1A}
   .float-tip.show{opacity:1;transform:translateY(0)}
   @media (max-width:480px){
-    .float-talk{padding:11px 14px;font-size:13px;right:10px;bottom:80px}
-    .float-tip{right:10px;bottom:140px;max-width:200px}
+    .float-talk{right:10px;bottom:8px;width:48px;height:48px}
+    .float-talk svg{width:26px;height:26px}
+    .float-tip{right:10px;bottom:62px;max-width:200px}
   }
 
   .review-card{background:linear-gradient(135deg,#FFFAEB,#FFF3CC);border:1px solid #FFD966;border-radius:12px;padding:14px;margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -246,9 +247,12 @@
     .doc-item.doc-tally .dhead{flex-wrap:wrap;row-gap:6px}
     .doc-item.doc-tally .dname{flex:1 1 100%;min-width:0;line-height:1.35}
     .doc-item.doc-tally .btn-add-tally{flex:0 0 auto;margin-left:auto}
-    .tally-row{grid-template-columns:1fr auto auto;grid-template-areas:"label label label" "amount won del";row-gap:6px}
-    .tally-row .tally-label-wrap{grid-area:label}
-    .tally-row input.tally-amount{grid-area:amount}
+    .tally-row{grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"label label label" "amount won del";row-gap:6px;min-width:0}
+    .tally-row .tally-label-wrap{grid-area:label;width:100%;min-width:0;max-width:100%}
+    .tally-row select.tally-label,
+    .tally-row input.tally-custom,
+    .tally-row input.tally-custom-only{min-width:0;max-width:100%}
+    .tally-row input.tally-amount{grid-area:amount;min-width:0;max-width:100%}
     .tally-row .tally-won{grid-area:won;text-align:center}
     .tally-row .tally-del{grid-area:del}
   }
@@ -708,9 +712,12 @@
 </section>
 
 <!-- 모든 페이지에 떠 있는 네이버 톡톡 floating 버튼 -->
-<a href="https://talk.naver.com/W40R67" target="_blank" rel="noopener" class="float-talk" id="floatTalk" data-talk="floating">
-  <span class="ft-icon">💬</span>
-  <span>네이버 톡톡 문의</span>
+<a href="https://talk.naver.com/W40R67" target="_blank" rel="noopener" class="float-talk" id="floatTalk" data-talk="floating" aria-label="네이버 톡톡 문의" title="네이버 톡톡 문의">
+  <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M5 3h14a2.5 2.5 0 0 1 2.5 2.5v9A2.5 2.5 0 0 1 19 17h-4.6L10 21.5V17H5a2.5 2.5 0 0 1-2.5-2.5v-9A2.5 2.5 0 0 1 5 3z" fill="#fff"/>
+    <circle cx="9" cy="10" r="1.4" fill="#03C75A"/>
+    <circle cx="15" cy="10" r="1.4" fill="#03C75A"/>
+  </svg>
 </a>
 <div class="float-tip" id="floatTip">
   헷갈리는 경우 <strong>네이버 톡톡으로 바로 문의</strong>주세요!
