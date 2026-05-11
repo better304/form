@@ -1141,6 +1141,34 @@ function validateStep(n){
         alert('각 소득에 대한 증빙서류를 첨부해 주세요'); return false;
       }
     }
+    /* 합계 다중 행(tally) — 금액 있는데 항목명 비어있는 행 차단 */
+    {
+      const boxes = $$('#docList [data-tally-rows]');
+      for(const box of boxes){
+        const rows = $$('.tally-row', box);
+        for(const r of rows){
+          const sel    = r.querySelector('select.tally-label');
+          const custom = r.querySelector('input.tally-custom');
+          const only   = r.querySelector('input.tally-custom-only');
+          const amtInp = r.querySelector('input.tally-amount');
+          let label = '';
+          if(sel && sel.value && sel.value !== '__custom__') label = sel.value;
+          else if(custom && custom.style.display !== 'none') label = (custom.value || '').trim();
+          else if(only) label = (only.value || '').trim();
+          const amtNum = ((amtInp && amtInp.value) || '').replace(/[^\d]/g, '');
+          if(amtNum && !label){
+            const docItem = box.closest('.doc-item');
+            const dn = docItem && docItem.querySelector('.dname');
+            const docName = dn ? (dn.textContent || '').replace(/\(원\)/g,'').trim() : '합계 항목';
+            alert(`[${docName}]\n금액만 입력되어 있고 항목명이 비어 있습니다.\n드롭다운에서 선택하거나 직접 입력해 주세요.`);
+            r.scrollIntoView({ behavior:'smooth', block:'center' });
+            const focusEl = r.querySelector('select.tally-label, input.tally-custom-only') || (custom && custom.style.display !== 'none' ? custom : null);
+            if(focusEl) { try { focusEl.focus(); } catch(_){} }
+            return false;
+          }
+        }
+      }
+    }
     return true;
   }
   /* Step 3 — 신고자 정보 */
